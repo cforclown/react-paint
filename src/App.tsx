@@ -1,25 +1,24 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import styled from 'styled-components';
+import Canvas from './Components/Canvas/Canvas';
+import Sidebar from './Components/Sidebar/Sidebar';
 
-function App() {
+const Container = styled.div`
+  background-color: #a29bfe;
+  overflow: hidden;
+  margin: 0px;
+  padding: 0px;
+  width: 100vw;
+  height: 100vh;
+
+  display: flex;
+`;
+
+function App(): JSX.Element {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Container>
+      <Sidebar />
+      <Canvas />
+    </Container>
   );
 }
 
