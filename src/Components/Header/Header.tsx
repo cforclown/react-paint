@@ -49,7 +49,7 @@ function Header({ undo, redo }: IHeader):JSX.Element {
         <FaRedo />
       </Button>
       <div className="separator" />
-      <text>Canvas size</text>
+      {/* <text>Canvas size</text> */}
       <Form.Control type="number" onChange={(e) => setCanvasSize({ ...canvasSize, width: e.target.value as unknown as number })} value={canvasSize.width} />
       <Form.Control type="number" onChange={(e) => setCanvasSize({ ...canvasSize, height: e.target.value as unknown as number })} value={canvasSize.height} />
       <Button onClick={() => dispatch(ChangeCanvasSize(canvasSize))}>

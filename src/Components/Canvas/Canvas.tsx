@@ -126,16 +126,16 @@ function Canvas({
 
   const updateElement = (id: number, type: ElementType, x1: number, y1: number, x2?: number, y2?: number, options?: { text?: string }): void => {
     const elementsCopy = [...elements];
-    let currentElement = elementsCopy[id];
     try {
-      if (type === 'line' || type === 'rectangle' || type === 'triangle') {
+      // if (type === 'line' || type === 'rectangle' || type === 'triangle') {
+      if (type === 'line' || type === 'rectangle') {
         if (!x2 || !y2) {
           throw new Error('updateElement: x2 and y2 is undefined');
         }
-        currentElement = createElement(generator, id, type, x1, y1, x2, y2, color, toolOptions[type]);
+        elementsCopy[id] = createElement(generator, id, type, x1, y1, x2, y2, color, toolOptions[type]);
       } else if (type === 'pencil') {
-        currentElement.points = [...currentElement.points, { x: x2, y: y2 }];
-        currentElement.color = color;
+        elementsCopy[id].points = [...elementsCopy[id].points, { x: x2, y: y2 }];
+        elementsCopy[id].color = color;
       } else if (type === 'text') {
         const canvasElement = document.getElementById('canvas') as HTMLCanvasElement | null;
         if (!canvasElement) {
@@ -148,7 +148,7 @@ function Canvas({
         const text = options && options.text ? options.text : '';
         const textWidth = canvasContext.measureText(text).width;
         const textHeight = 24;
-        currentElement = {
+        elementsCopy[id] = {
           ...createElement(generator, id, type, x1, y1, x1 + textWidth, y1 + textHeight, color, toolOptions[type]),
           text,
         };
@@ -289,7 +289,9 @@ function Canvas({
       }
     }
 
-    if (action === 'writing') return;
+    if (action === 'writing') {
+      return;
+    }
 
     setAction('none');
     setSelectedElement(null);

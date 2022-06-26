@@ -15,7 +15,7 @@ export interface IState {
     line: ILineOptions;
     rectangle: IRectangleOptions;
     circle: IRectangleOptions;
-    triangle: ITriangleOptions;
+    // triangle: ITriangleOptions;
     pencil: IPencilOptions;
     text: ITextOptions;
   };
@@ -28,7 +28,7 @@ const defaultState: IState = {
     width: 800,
     height: 600,
   },
-  tool: 'pencil',
+  tool: 'rectangle',
   toolOptions: {
     line: {
       strokeWidth: 4,
@@ -41,10 +41,10 @@ const defaultState: IState = {
       fillStyle: 'solid',
       strokeWidth: 4,
     },
-    triangle: {
-      fillStyle: 'solid',
-      strokeWidth: 4,
-    },
+    // triangle: {
+    //   fillStyle: 'solid',
+    //   strokeWidth: 4,
+    // },
     pencil: {
       strokeWidth: 8,
     },
