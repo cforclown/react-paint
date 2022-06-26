@@ -5,10 +5,21 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  display: block;
 }
 
 .rc-tooltip-inner {
   min-height: 20px !important;
+}
+
+.pro-sidebar .pro-menu .pro-menu-item.active {
+  color: #d63031;
+}
+.pro-sidebar .pro-menu .pro-menu-item.active > .pro-inner-item > .pro-icon-wrapper .pro-icon {
+  color: #d63031;
+}
+.pro-sidebar .pro-menu .pro-menu-item > .pro-inner-item > .pro-icon-wrapper .pro-icon:hover {
+	color: #d63031;
 }
 
 code {

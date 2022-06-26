@@ -1,1 +1,8 @@
-export {};
+const ActionTypes = {
+  CHANGE_CANVAS_SIZE: 'CHANGE_CANVAS_SIZE',
+  CHANGE_TOOL: 'CHANGE_TOOL',
+  CHANGE_COLOR: 'CHANGE_COLOR',
+  SHOW_OR_HIDE_COLOR_PICKER: 'SHOW_OR_HIDE_COLOR_PICKER',
+};
+
+export default ActionTypes;

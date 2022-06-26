@@ -1,8 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Provider } from 'react-redux';
+import Store from './Store';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import './index.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import 'rc-tooltip/assets/bootstrap.css';
 
 const root = ReactDOM.createRoot(
@@ -10,7 +13,9 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <React.StrictMode>
-    <App />
+    <Provider store={Store}>
+      <App />
+    </Provider>
   </React.StrictMode>,
 );
 

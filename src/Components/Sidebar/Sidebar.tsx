@@ -2,32 +2,64 @@ import {
   ProSidebar, SidebarHeader, Menu, MenuItem,
 } from 'react-pro-sidebar';
 import styled from 'styled-components';
-import { IconProp } from '@fortawesome/fontawesome-svg-core';
-import { faBrush, faLineChart } from '@fortawesome/free-solid-svg-icons';
 import Tooltip from 'rc-tooltip';
+import { useDispatch, useSelector } from 'react-redux';
+import { useMemo } from 'react';
+import {
+  BiSquare, BiBox, BiCircle, BiShapeTriangle,
+} from 'react-icons/bi';
+import {
+  FaPencilAlt, FaTextHeight, FaMinus, FaEllipsisH,
+} from 'react-icons/fa';
+import { IState } from '../../Reducer/Reducer';
+import { ChangeTool, ShowOrHideColorPicker } from '../../Reducer/Actions';
+import { isToolType, ToolType } from '../Canvas/Canvas.service';
 import TooltipContainer from '../Tooltip/Tooltip';
-import SidebarItemsContainer from './SidebarItem';
-import { IDrawAction } from '../../Types/Common';
+import SidebarItemsContainer, { ISidebarItem } from './SidebarItem';
+// import items from './SidebarItems';
 import logo from '../../Assets/logo.png';
 import 'react-pro-sidebar/dist/css/styles.css';
 
-export interface ISidebarItem {
-  id: string;
-  name: string;
-  icon: IconProp;
-  action?: IDrawAction;
-  items?: ISidebarItem[];
-}
 const items: ISidebarItem[] = [
   {
-    id: 'brush',
-    name: 'Brush',
-    icon: faBrush,
+    id: 'selection',
+    name: 'Selection',
+    icon: <BiBox />,
   },
   {
     id: 'line',
     name: 'Line',
-    icon: faLineChart,
+    icon: <FaMinus />,
+  },
+  {
+    id: 'rectangle',
+    name: 'Rectangle',
+    icon: <BiSquare />,
+  },
+  {
+    id: 'triangle',
+    name: 'Triangle',
+    icon: <BiShapeTriangle />,
+  },
+  {
+    id: 'rectangle',
+    name: 'Circle',
+    icon: <BiCircle />,
+  },
+  {
+    id: 'rectangle',
+    name: 'Ellipse',
+    icon: <FaEllipsisH />,
+  },
+  {
+    id: 'pencil',
+    name: 'Pencil',
+    icon: <FaPencilAlt />,
+  },
+  {
+    id: 'text',
+    name: 'Text',
+    icon: <FaTextHeight />,
   },
 ];
 
@@ -40,22 +72,28 @@ const Container = styled.div`
 `;
 
 function Sidebar(): JSX.Element {
+  const dispatch = useDispatch();
+  const currentTool = useSelector<IState>((state) => state.tool) as string;
+  const currentColor = useSelector<IState>((state) => state.color) as string;
+
   const handleItemOnClick = (item: ISidebarItem): void => {
-    console.log('item', item);
+    if (!isToolType(item.id)) {
+      return;
+    }
+    dispatch(ChangeTool(item.id as ToolType));
   };
+
   const handleColorClick = (): void => {
-    console.log(currentColor);
+    dispatch(ShowOrHideColorPicker(true));
   };
 
-  const currentColor = '#6c5ce7';
-
-  const sidebarItems = items.map((item, index) => (
-    <SidebarItemsContainer key={index} {...item} onClick={handleItemOnClick} />
-  ));
+  const sidebarItems = useMemo(() => items.map((item, index) => (
+    <SidebarItemsContainer key={index} {...item} onClick={handleItemOnClick} isActive={item.id === currentTool} />
+  )), [currentTool]);
 
   return (
     <Container>
-      <ProSidebar width="240px" collapsed color="#2d3436">
+      <ProSidebar width="240px" collapsed color="red" style={{ backgroundColor: 'red' }}>
         <SidebarHeader>
           <div style={{ textAlign: 'center', paddingTop: '0.4rem', paddingBottom: '0.2rem' }}>
             <img

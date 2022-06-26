@@ -1,42 +1,74 @@
 import React, {
-  MouseEventHandler,
   useEffect, useLayoutEffect, useRef, useState,
 } from 'react';
 import styled from 'styled-components';
-import rough from 'roughjs';
-import getStroke from 'perfect-freehand';
-import { RoughGenerator } from 'roughjs/bin/generator';
-import { Drawable } from 'roughjs/bin/core';
-import { Point } from 'roughjs/bin/geometry';
-import { useHistory } from '../../Hooks/UseHistory';
+import rough from 'roughjs/bin/rough';
+import { useSelector } from 'react-redux';
 import {
-  isElementType, createElement, drawElement, ElementType, getElementAtPosition, TypeElement, resizedCoordinates, cursorForPosition, PositionType,
+  isElementType,
+  createElement,
+  drawElement,
+  ElementType,
+  getElementAtPosition,
+  TypeElement,
+  resizedCoordinates,
+  cursorForPosition,
+  PositionType,
+  adjustmentRequired,
+  adjustElementCoordinates,
+  ILineElement,
+  IRectangleElement,
+  ITextElement,
 } from './Canvas.service';
+import { IState } from '../../Reducer/Reducer';
 
 const Container = styled.div`
   width: 100%;
-  padding: 1rem;
+  height: 100%;
+  padding: 1rem 0 0 1rem;
+  overflow: auto;
 `;
 
 const CanvasContainer = styled.div`
-  background-color: white;
+  width: 100%;
   height: 100%;
-  box-shadow: 1px 4px 6px #00000040;
+  > canvas {
+    background-color: white;
+    box-shadow: 0px 0px 6px #00000080;
+  }
+`;
+
+const TextAreaContainer = styled.textarea`
+  border: 1px solid #b2bec3;
 `;
 
 const generator = rough.generator();
 
-function Canvas(): JSX.Element {
-  const [
-    elements,
-    setElements,
-    undo,
-    redo,
-  ] = useHistory([]);
+function getMousePosition(mouseEvent: React.MouseEvent<HTMLCanvasElement>, canvasRect: DOMRect): { mouseX: number; mouseY: number; } {
+  const { clientX, clientY } = mouseEvent;
+  return {
+    mouseX: clientX - canvasRect.left,
+    mouseY: clientY - canvasRect.top,
+  };
+}
+
+interface ICanvas {
+  elements: any[],
+  setElements: (state: any, overwrite?: boolean | undefined) => void,
+  undo: () => void,
+  redo: () => void
+}
+
+function Canvas({
+  elements, setElements, undo, redo,
+}: ICanvas): JSX.Element {
+  const {
+    tool, toolOptions, canvasSize, color,
+  } = useSelector<IState>((state) => state) as IState;
   const [action, setAction] = useState('none');
-  const [tool, setTool] = useState<ElementType | 'selection'>('text');
-  const [selectedElement, setSelectedElement] = useState<TypeElement>();
-  const textAreaRef = useRef<HTMLTextAreaElement>();
+  const [selectedElement, setSelectedElement] = useState<TypeElement | null>(null);
+  const [canvasRect, setCanvasRect] = useState<DOMRect>();
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement | null;
@@ -52,10 +84,20 @@ function Canvas(): JSX.Element {
     const roughCanvas = rough.canvas(canvas);
 
     elements.forEach((element) => {
-      if (action === 'writing' && selectedElement && selectedElement.id === element.id) return;
+      if (action === 'writing' && selectedElement && selectedElement.id === element.id) {
+        return;
+      }
       drawElement(roughCanvas, context, element);
     });
   }, [elements, action, selectedElement]);
+
+  useEffect(() => {
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement | null;
+    if (!canvas) {
+      return;
+    }
+    setCanvasRect(canvas.getBoundingClientRect());
+  }, []);
 
   useEffect(() => {
     const undoRedoFunction = (event: KeyboardEvent): void => {
@@ -82,14 +124,18 @@ function Canvas(): JSX.Element {
     }
   }, [action, selectedElement]);
 
-  const updateElement = (id: number, type: ElementType, x1: number, y1: number, x2: number, y2: number, options?: { text: string }): void => {
+  const updateElement = (id: number, type: ElementType, x1: number, y1: number, x2?: number, y2?: number, options?: { text?: string }): void => {
     const elementsCopy = [...elements];
-
+    let currentElement = elementsCopy[id];
     try {
-      if (type === 'line' || type === 'rectangle') {
-        elementsCopy[id] = createElement(generator, id, type, x1, y1, x2, y2);
+      if (type === 'line' || type === 'rectangle' || type === 'triangle') {
+        if (!x2 || !y2) {
+          throw new Error('updateElement: x2 and y2 is undefined');
+        }
+        currentElement = createElement(generator, id, type, x1, y1, x2, y2, color, toolOptions[type]);
       } else if (type === 'pencil') {
-        elementsCopy[id].points = [...elementsCopy[id].points, { x: x2, y: y2 }];
+        currentElement.points = [...currentElement.points, { x: x2, y: y2 }];
+        currentElement.color = color;
       } else if (type === 'text') {
         const canvasElement = document.getElementById('canvas') as HTMLCanvasElement | null;
         if (!canvasElement) {
@@ -99,12 +145,12 @@ function Canvas(): JSX.Element {
         if (!canvasContext) {
           throw new Error('UPDATE ELEMENT: canvas context not found');
         }
-        const text = options ? options.text : ''
+        const text = options && options.text ? options.text : '';
         const textWidth = canvasContext.measureText(text).width;
         const textHeight = 24;
-        elementsCopy[id] = {
-          ...createElement(generator, id, type, x1, y1, x1 + textWidth, y1 + textHeight),
-          text
+        currentElement = {
+          ...createElement(generator, id, type, x1, y1, x1 + textWidth, y1 + textHeight, color, toolOptions[type]),
+          text,
         };
       } else {
         throw new Error(`Type not recognised: ${type}`);
@@ -120,19 +166,21 @@ function Canvas(): JSX.Element {
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>): void => {
-    if (action === 'writing') return;
+    if (!canvasRect || action === 'writing') {
+      return;
+    }
 
-    const { clientX, clientY } = event;
+    const { mouseX, mouseY } = getMousePosition(event, canvasRect);
     if (tool === 'selection') {
-      const element = getElementAtPosition(clientX, clientY, elements);
+      const element = getElementAtPosition(mouseX, mouseY, elements);
       if (element) {
         if (element.type === 'pencil') {
-          const xOffsets = element.points.map((point) => clientX - point.x);
-          const yOffsets = element.points.map((point) => clientY - point.y);
+          const xOffsets = element.points.map((point) => mouseX - point.x);
+          const yOffsets = element.points.map((point) => mouseY - point.y);
           setSelectedElement({ ...element, xOffsets, yOffsets });
         } else {
-          const offsetX = clientX - element.x1;
-          const offsetY = clientY - element.y1;
+          const offsetX = mouseX - element.x1;
+          const offsetY = mouseY - element.y1;
           setSelectedElement({ ...element, offsetX, offsetY });
         }
         setElements((prevState: any) => prevState);
@@ -145,34 +193,41 @@ function Canvas(): JSX.Element {
       }
     } else if (isElementType(tool)) {
       const id = elements.length;
-      const element = createElement(generator, id, tool as ElementType, clientX, clientY, clientX, clientY);
+      const element = createElement(generator, id, tool as ElementType, mouseX, mouseY, mouseX, mouseY, color, toolOptions[tool]);
       if (!element) {
         return;
       }
       setElements((prevState: any) => [...prevState, element]);
       setSelectedElement(element);
-
       setAction(tool === 'text' ? 'writing' : 'drawing');
     }
   };
 
-  const handleMouseMove = ((event: React.MouseEvent<HTMLCanvasElement>): void => {
-    const { clientX, clientY } = event;
+  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>): void => {
+    if (!canvasRect) {
+      return;
+    }
 
+    const { mouseX, mouseY } = getMousePosition(event, canvasRect);
     if (tool === 'selection') {
-      const element = getElementAtPosition(clientX, clientY, elements);
+      const element = getElementAtPosition(mouseX, mouseY, elements);
+      // eslint-disable-next-line no-param-reassign
       event.currentTarget.style.cursor = element ? cursorForPosition(element.position as PositionType) : 'default';
     }
 
     if (action === 'drawing') {
       const index = elements.length - 1;
       const { x1, y1 } = elements[index];
-      updateElement(index, tool as ElementType, x1, y1, clientX, clientY);
+      updateElement(index, tool as ElementType, x1, y1, mouseX, mouseY);
     } else if (action === 'moving') {
+      if (!selectedElement) {
+        return;
+      }
+
       if (selectedElement.type === 'pencil') {
         const newPoints = selectedElement.points.map((_, index) => ({
-          x: clientX - selectedElement.xOffsets[index],
-          y: clientY - selectedElement.yOffsets[index],
+          x: mouseX - selectedElement.xOffsets[index],
+          y: mouseY - selectedElement.yOffsets[index],
         }));
         const elementsCopy = [...elements];
         elementsCopy[selectedElement.id] = {
@@ -186,29 +241,39 @@ function Canvas(): JSX.Element {
         } = selectedElement;
         const width = x2 - x1;
         const height = y2 - y1;
-        const newX1 = clientX - offsetX;
-        const newY1 = clientY - offsetY;
+        const newX1 = mouseX - offsetX;
+        const newY1 = mouseY - offsetY;
         const options = type === 'text' ? { text: selectedElement.text } : {};
         updateElement(id, type, newX1, newY1, newX1 + width, newY1 + height, options);
       }
     } else if (action === 'resizing') {
+      if (!selectedElement) {
+        return;
+      }
+      if (selectedElement.type === 'pencil') {
+        return;
+      }
       const {
         id, type, position, ...coordinates
       } = selectedElement;
-      const {
-        x1, y1, x2, y2,
-      } = resizedCoordinates(clientX, clientY, position, coordinates);
-      updateElement(id, type, x1, y1, x2, y2);
+      const newCoordinates = resizedCoordinates(mouseX, mouseY, coordinates, position);
+      if (newCoordinates) {
+        updateElement(id, type, newCoordinates.x1, newCoordinates.y1, newCoordinates.x2, newCoordinates.y2);
+      }
     }
   };
 
-  const handleMouseUp = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const { clientX, clientY } = event;
+  const handleMouseUp = (event: React.MouseEvent<HTMLCanvasElement>): void => {
+    if (!canvasRect) {
+      return;
+    }
+
+    const { mouseX, mouseY } = getMousePosition(event, canvasRect);
     if (selectedElement) {
       if (
         selectedElement.type === 'text'
-        && clientX - selectedElement.offsetX === selectedElement.x1
-        && clientY - selectedElement.offsetY === selectedElement.y1
+        && mouseX - selectedElement.offsetX === selectedElement.x1
+        && mouseY - selectedElement.offsetY === selectedElement.y1
       ) {
         setAction('writing');
         return;
@@ -230,51 +295,24 @@ function Canvas(): JSX.Element {
     setSelectedElement(null);
   };
 
-  const handleBlur = (event) => {
+  const handleBlur = (event: React.FocusEvent<HTMLTextAreaElement>): void => {
+    if (!selectedElement) {
+      return;
+    }
+
     const {
-      id, x1, y1, type,
-    } = selectedElement;
+      id, type, x1, y1,
+    } = selectedElement as ILineElement | IRectangleElement | ITextElement;
     setAction('none');
     setSelectedElement(null);
-    updateElement(id, type, x1, y1, null, null, { text: event.target.value });
+    updateElement(id, type, x1, y1, undefined, undefined, { text: event.target.value });
   };
 
   return (
     <Container>
-      <CanvasContainer>
-        <div style={{ position: 'fixed' }}>
-          <input
-            type="radio"
-            id="selection"
-            checked={tool === 'selection'}
-            onChange={() => setTool('selection')}
-          />
-          <label htmlFor="selection">Selection</label>
-          <input type="radio" id="line" checked={tool === 'line'} onChange={() => setTool('line')} />
-          <label htmlFor="line">Line</label>
-          <input
-            type="radio"
-            id="rectangle"
-            checked={tool === 'rectangle'}
-            onChange={() => setTool('rectangle')}
-          />
-          <label htmlFor="rectangle">Rectangle</label>
-          <input
-            type="radio"
-            id="pencil"
-            checked={tool === 'pencil'}
-            onChange={() => setTool('pencil')}
-          />
-          <label htmlFor="pencil">Pencil</label>
-          <input type="radio" id="text" checked={tool === 'text'} onChange={() => setTool('text')} />
-          <label htmlFor="text">Text</label>
-        </div>
-        <div style={{ position: 'fixed', bottom: 0, padding: 10 }}>
-          <button onClick={undo}>Undo</button>
-          <button onClick={redo}>Redo</button>
-        </div>
-        {action === 'writing' ? (
-          <textarea
+      <CanvasContainer id="canvas-container">
+        {(action === 'writing' && selectedElement && selectedElement.type !== 'pencil') ? (
+          <TextAreaContainer
             ref={textAreaRef}
             onBlur={handleBlur}
             style={{
@@ -284,9 +322,9 @@ function Canvas(): JSX.Element {
               font: '24px sans-serif',
               margin: 0,
               padding: 0,
-              border: 0,
               outline: 0,
-              resize: 'auto',
+              // resize: 'auto',
+              resize: 'both',
               overflow: 'hidden',
               whiteSpace: 'pre',
               background: 'transparent',
@@ -295,8 +333,8 @@ function Canvas(): JSX.Element {
         ) : null}
         <canvas
           id="canvas"
-          width={window.innerWidth}
-          height={window.innerHeight}
+          width={canvasSize.width}
+          height={canvasSize.height}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}

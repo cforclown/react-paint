@@ -1,17 +1,27 @@
-import { IconProp } from '@fortawesome/fontawesome-svg-core';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Tooltip from 'rc-tooltip';
+import { BiSquare } from 'react-icons/bi';
+import { FaPencilAlt, FaTextHeight } from 'react-icons/fa';
+import { IconType } from 'react-icons/lib';
 import { MenuItem, SubMenu } from 'react-pro-sidebar';
 import styled from 'styled-components';
+import { IDrawAction } from '../../Types/Common';
 import TooltipContainer from '../Tooltip/Tooltip';
-import { ISidebarItem } from './Sidebar';
+
+export interface ISidebarItem {
+  id: string;
+  name: string;
+  icon: React.ReactElement;
+  action?: IDrawAction;
+  items?: ISidebarItem[];
+}
 
 interface ISidebarItemProps {
   name: string;
-  icon: IconProp;
+  icon: React.ReactElement;
   active?: boolean;
   onClick: ()=>void
 }
+
 function SidebarItem({
   name, icon, active, onClick,
 }: ISidebarItemProps): JSX.Element {
@@ -20,7 +30,7 @@ function SidebarItem({
       <MenuItem
         onClick={onClick || null}
         active={active}
-        icon={<FontAwesomeIcon icon={icon} />}
+        icon={icon}
         popperarrow
       >
         {name}
@@ -57,7 +67,11 @@ const SidebarItemsContainer = ({ onClick, ...props }: ISidebarItemsContainer): J
   const { name, icon } = props;
 
   return (
-    <SubMenu {...props} title={name} icon={<FontAwesomeIcon icon={icon} />}>
+    <SubMenu
+      {...props}
+      title={name}
+      icon={icon}
+    >
       <LabelContainer>
         {name}
       </LabelContainer>
