@@ -37,7 +37,7 @@ const items: ISidebarItem[] = [
     icon: <BiSquare />,
   },
   {
-    id: 'rectangle',
+    id: 'triangle',
     name: 'Triangle',
     icon: <BiShapeTriangle />,
   },

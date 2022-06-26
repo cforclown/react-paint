@@ -21,6 +21,7 @@ import {
   ITextElement,
 } from './Canvas.service';
 import { IState } from '../../Reducer/Reducer';
+import ElementRect from '../ElementRect/ElementRect';
 
 const Container = styled.div`
   width: 100%;
@@ -127,8 +128,7 @@ function Canvas({
   const updateElement = (id: number, type: ElementType, x1: number, y1: number, x2?: number, y2?: number, options?: { text?: string }): void => {
     const elementsCopy = [...elements];
     try {
-      // if (type === 'line' || type === 'rectangle' || type === 'triangle') {
-      if (type === 'line' || type === 'rectangle') {
+      if (type === 'line' || type === 'rectangle' || type === 'triangle') {
         if (!x2 || !y2) {
           throw new Error('updateElement: x2 and y2 is undefined');
         }
@@ -343,6 +343,9 @@ function Canvas({
         >
           Canvas
         </canvas>
+        {tool === 'selection' && selectedElement && canvasRect && (
+          <ElementRect element={selectedElement} canvasOffset={{ x: canvasRect.left, y: canvasRect.top }} />
+        )}
       </CanvasContainer>
     </Container>
   );

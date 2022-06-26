@@ -1,4 +1,4 @@
-import { IPencilElement, ToolType } from '../Components/Canvas/Canvas.service';
+import { ToolType } from '../Components/Canvas/Canvas.service';
 import {
   ILineOptions, IPencilOptions, IRectangleOptions, ITextOptions, ITriangleOptions,
 } from '../Types/Common';
@@ -15,7 +15,7 @@ export interface IState {
     line: ILineOptions;
     rectangle: IRectangleOptions;
     circle: IRectangleOptions;
-    // triangle: ITriangleOptions;
+    triangle: ITriangleOptions;
     pencil: IPencilOptions;
     text: ITextOptions;
   };
@@ -41,10 +41,10 @@ const defaultState: IState = {
       fillStyle: 'solid',
       strokeWidth: 4,
     },
-    // triangle: {
-    //   fillStyle: 'solid',
-    //   strokeWidth: 4,
-    // },
+    triangle: {
+      fillStyle: 'solid',
+      strokeWidth: 4,
+    },
     pencil: {
       strokeWidth: 8,
     },
