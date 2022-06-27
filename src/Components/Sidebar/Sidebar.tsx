@@ -13,7 +13,7 @@ import {
 } from 'react-icons/fa';
 import { IState } from '../../Reducer/Reducer';
 import { ChangeTool, ShowOrHideColorPicker } from '../../Reducer/Actions';
-import { isToolType, ToolType } from '../Canvas/Canvas.service';
+import { isToolType, ToolType } from '../../Utils/Element.service';
 import TooltipContainer from '../Tooltip/Tooltip';
 import SidebarItemsContainer, { ISidebarItem } from './SidebarItem';
 // import items from './SidebarItems';
@@ -42,12 +42,12 @@ const items: ISidebarItem[] = [
     icon: <BiShapeTriangle />,
   },
   {
-    id: 'rectangle',
+    id: 'circle',
     name: 'Circle',
     icon: <BiCircle />,
   },
   {
-    id: 'rectangle',
+    id: 'ellipse',
     name: 'Ellipse',
     icon: <FaEllipsisH />,
   },

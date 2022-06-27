@@ -1,216 +1,8 @@
 import getStroke from 'perfect-freehand';
 import { RoughCanvas } from 'roughjs/bin/canvas';
-import { Drawable } from 'roughjs/bin/core';
-import { RoughGenerator } from 'roughjs/bin/generator';
-import { Point } from 'roughjs/bin/geometry';
-import { ToolOptions } from '../../Types/Common';
-
-const ElementTypes = ['line', 'rectangle', 'triangle', 'pencil', 'text'] as const;
-export type ElementType = (typeof ElementTypes)[number];
-export const isElementType = (type: any): type is ElementType => ElementTypes.includes(type);
-
-const ToolTypes = ['selection', 'line', 'rectangle', 'triangle', 'pencil', 'text'] as const;
-export type ToolType = (typeof ToolTypes)[number];
-export const isToolType = (tool: any): tool is ToolType => ToolTypes.includes(tool);
-
-export type TypeElement = ILineElement | IRectangleElement | ITriangleElement | IPencilElement | ITextElement
-export interface IElement {
-  id: number;
-  type: ElementType;
-  color: string;
-  options?: ToolOptions
-  position?: string | null;
-}
-
-export interface IPoint {
-  x: number;
-  y: number;
-}
-
-export type PositionType = 'tl' | 'br' | 'start' | 'end' | 'tr' | 'bl' | 'inside'
-
-export interface ILineElement extends IElement {
-  type: 'line';
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  offsetX: number;
-  offsetY: number;
-  roughElement: Drawable;
-}
-
-export interface IRectangleElement extends Omit<ILineElement, 'type'> {
-  type: 'rectangle'
-}
-
-export interface ITriangleElement extends Omit<ILineElement, 'type'> {
-  type: 'triangle'
-}
-
-export interface IPencilElement extends IElement {
-  type: 'pencil';
-  points: IPoint[];
-  xOffsets: number[];
-  yOffsets: number[];
-}
-
-export interface ITextElement extends IElement {
-  type: 'text';
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  offsetX: number;
-  offsetY: number;
-  text: string;
-  color: string;
-}
-
-export interface IElementCoordinate {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
-
-export function createLine(
-  id: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  roughGeneratopr: RoughGenerator,
-  color: string,
-  options: Record<string, any>,
-): ILineElement {
-  return {
-    id,
-    type: 'line',
-    x1,
-    y1,
-    x2,
-    y2,
-    offsetX: 0,
-    offsetY: 0,
-    roughElement: roughGeneratopr.line(x1, y1, x2, y2, {
-      stroke: color,
-      fill: color,
-      ...options,
-    }),
-    color,
-  };
-}
-
-export function createRectangle(
-  id: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  roughGeneratopr: RoughGenerator,
-  color: string,
-  options: Record<string, any>,
-): IRectangleElement {
-  return {
-    id,
-    type: 'rectangle',
-    x1,
-    y1,
-    x2,
-    y2,
-    offsetX: 0,
-    offsetY: 0,
-    roughElement: roughGeneratopr.rectangle(x1, y1, x2 - x1, y2 - y1, {
-      stroke: color,
-      fill: color,
-      ...options,
-    }),
-    color,
-  };
-}
-
-export function createTriangle(
-  id: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  roughGeneratopr: RoughGenerator,
-  color: string,
-  options: Record<string, any>,
-): ITriangleElement {
-  const points: [IPoint, IPoint, IPoint] = [
-    { x: x1 + (x2 - x1) / 2, y: y1 },
-    { x: x2, y: y2 },
-    { x: x1, y: y2 },
-  ];
-  const polygonPoints: Point[] = points.map((p) => [p.x, p.y]);
-  return {
-    id,
-    type: 'triangle',
-    x1,
-    y1,
-    x2,
-    y2,
-    offsetX: 0,
-    offsetY: 0,
-    roughElement: roughGeneratopr.polygon(polygonPoints, {
-      stroke: color,
-      fill: color,
-      ...options,
-    }),
-    color,
-  };
-}
-
-export const createElement = (
-  roughGeneratopr: RoughGenerator,
-  id: number,
-  type: ElementType,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  color: string,
-  options: Record<string, any>,
-): TypeElement | null => {
-  if (type === 'line') {
-    return createLine(id, x1, y1, x2, y2, roughGeneratopr, color, options);
-  }
-  if (type === 'rectangle') {
-    return createRectangle(id, x1, y1, x2, y2, roughGeneratopr, color, options);
-  }
-  if (type === 'triangle') {
-    return createTriangle(id, x1, y1, x2, y2, roughGeneratopr, color, options);
-  }
-  if (type === 'pencil') {
-    return {
-      id,
-      type,
-      points: [{ x: x1, y: y1 }],
-      xOffsets: [],
-      yOffsets: [],
-      color,
-    };
-  }
-  if (type === 'text') {
-    return {
-      id,
-      type,
-      x1,
-      y1,
-      x2,
-      y2,
-      offsetX: 0,
-      offsetY: 0,
-      text: '',
-      color,
-    };
-  }
-
-  return null;
-};
+import {
+  IElementCoordinate, IPoint, PositionType, TypeElement, isShapeElementType,
+} from '../../Utils/Element.service';
 
 export const onLine = (x1: any, y1: any, x2: any, y2: any, x: any, y: any, maxDistance = 1): 'inside' | null => {
   const a = { x: x1, y: y1 };
@@ -272,7 +64,16 @@ export const getElementAtPosition = (
   elements: TypeElement[],
 ): TypeElement | undefined => elements.map((element) => ({ ...element, position: positionWithinElement(x, y, element) })).find((element) => !!element.position);
 
-export const adjustElementCoordinates = (element: ILineElement | IRectangleElement | ITriangleElement | ITextElement): IElementCoordinate => {
+export const adjustElementCoordinates = (element: TypeElement): IElementCoordinate => {
+  if (element.type === 'pencil') {
+    return {
+      x1: 0,
+      y1: 0,
+      x2: 0,
+      y2: 0,
+    };
+  }
+
   const {
     type, x1, y1, x2, y2,
   } = element;
@@ -343,7 +144,7 @@ export const resizedCoordinates = (clientX: number, clientY: number, coordinates
   }
 };
 
-const getSvgPathFromStroke = (stroke: number[][], color?: string): string => {
+const getSvgPathFromStroke = (stroke: number[][]): string => {
   if (!stroke.length) {
     return '';
   }
@@ -366,6 +167,8 @@ export const drawElement = (roughCanvas: RoughCanvas, context: CanvasRenderingCo
     case 'line':
     case 'rectangle':
     case 'triangle':
+    case 'circle':
+    case 'ellipse':
       roughCanvas.draw(element.roughElement);
       break;
     case 'pencil':
@@ -382,7 +185,7 @@ export const drawElement = (roughCanvas: RoughCanvas, context: CanvasRenderingCo
   }
 };
 
-export const adjustmentRequired = (type: string): boolean => ['line', 'rectangle', 'triangle'].includes(type);
+export const adjustmentRequired = (type: string): boolean => isShapeElementType(type);
 
 export interface IElementRect { x: number, y: number, width: number, height: number }
 export const getElementRect = (element: TypeElement): IElementRect | null => {
@@ -394,15 +197,7 @@ export const getElementRect = (element: TypeElement): IElementRect | null => {
       height: element.y2 - element.y1,
     };
   }
-  if (element.type === 'rectangle') {
-    return {
-      x: element.x1,
-      y: element.y1,
-      width: element.x2 - element.x1,
-      height: element.y2 - element.y1,
-    };
-  }
-  if (element.type === 'triangle') {
+  if (element.type === 'rectangle' || element.type === 'triangle' || element.type === 'circle' || element.type === 'ellipse') {
     return {
       x: element.x1,
       y: element.y1,

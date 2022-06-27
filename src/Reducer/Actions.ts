@@ -1,4 +1,4 @@
-import { ToolType } from '../Components/Canvas/Canvas.service';
+import { ToolType } from '../Utils/Element.service';
 import ActionTypes from './ActionTypes';
 
 export interface IReducerAction {

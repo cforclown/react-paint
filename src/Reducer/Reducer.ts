@@ -1,7 +1,9 @@
-import { ToolType } from '../Components/Canvas/Canvas.service';
 import {
+  ICircleOptions,
+  IEllipseOptions,
   ILineOptions, IPencilOptions, IRectangleOptions, ITextOptions, ITriangleOptions,
 } from '../Types/Common';
+import { ToolType } from '../Utils/Element.service';
 import { IReducerAction } from './Actions';
 import ActionTypes from './ActionTypes';
 
@@ -14,8 +16,9 @@ export interface IState {
   toolOptions: {
     line: ILineOptions;
     rectangle: IRectangleOptions;
-    circle: IRectangleOptions;
     triangle: ITriangleOptions;
+    circle: ICircleOptions;
+    ellipse: IEllipseOptions;
     pencil: IPencilOptions;
     text: ITextOptions;
   };
@@ -28,22 +31,31 @@ const defaultState: IState = {
     width: 800,
     height: 600,
   },
-  tool: 'rectangle',
+  tool: 'pencil',
   toolOptions: {
     line: {
       strokeWidth: 4,
+      roughness: 0,
     },
     rectangle: {
-      fillStyle: 'solid',
       strokeWidth: 4,
-    },
-    circle: {
+      roughness: 0,
       fillStyle: 'solid',
-      strokeWidth: 4,
     },
     triangle: {
-      fillStyle: 'solid',
       strokeWidth: 4,
+      roughness: 0,
+      fillStyle: 'solid',
+    },
+    circle: {
+      strokeWidth: 4,
+      roughness: 0,
+      fillStyle: 'solid',
+    },
+    ellipse: {
+      strokeWidth: 4,
+      roughness: 0,
+      fillStyle: 'solid',
     },
     pencil: {
       strokeWidth: 8,

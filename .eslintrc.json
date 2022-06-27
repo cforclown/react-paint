@@ -85,6 +85,7 @@
         "allowExpressions": true
       }
     ],
+    "@typescript-eslint/no-empty-interface": "off",
     "import/extensions": [
       "error",
       "ignorePackages",

@@ -1,5 +1,6 @@
 import styled from 'styled-components';
-import { getElementRect, IElementRect, TypeElement } from '../Canvas/Canvas.service';
+import { TypeElement } from '../../Utils/Element.service';
+import { getElementRect, IElementRect } from '../Canvas/Canvas.service';
 
 const Container = styled.div`
   position: absolute;

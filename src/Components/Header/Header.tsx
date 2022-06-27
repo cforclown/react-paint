@@ -19,6 +19,7 @@ const Container = styled.div`
     font-weight: bold;
   }
   > input {
+    font-weight: normal;
     width: 100px;
   }
   > .separator {
@@ -49,7 +50,7 @@ function Header({ undo, redo }: IHeader):JSX.Element {
         <FaRedo />
       </Button>
       <div className="separator" />
-      {/* <text>Canvas size</text> */}
+      <p>Canvas size</p>
       <Form.Control type="number" onChange={(e) => setCanvasSize({ ...canvasSize, width: e.target.value as unknown as number })} value={canvasSize.width} />
       <Form.Control type="number" onChange={(e) => setCanvasSize({ ...canvasSize, height: e.target.value as unknown as number })} value={canvasSize.height} />
       <Button onClick={() => dispatch(ChangeCanvasSize(canvasSize))}>

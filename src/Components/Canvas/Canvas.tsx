@@ -5,23 +5,25 @@ import styled from 'styled-components';
 import rough from 'roughjs/bin/rough';
 import { useSelector } from 'react-redux';
 import {
-  isElementType,
-  createElement,
   drawElement,
-  ElementType,
   getElementAtPosition,
-  TypeElement,
   resizedCoordinates,
   cursorForPosition,
-  PositionType,
   adjustmentRequired,
   adjustElementCoordinates,
+} from './Canvas.service';
+import {
+  isElementType,
+  createElement,
+  ElementType,
+  TypeElement,
+  PositionType,
   ILineElement,
   IRectangleElement,
   ITextElement,
-} from './Canvas.service';
+} from '../../Utils/Element.service';
 import { IState } from '../../Reducer/Reducer';
-import ElementRect from '../ElementRect/ElementRect';
+// import ElementRect from '../ElementRect/ElementRect';
 
 const Container = styled.div`
   width: 100%;
@@ -90,7 +92,7 @@ function Canvas({
       }
       drawElement(roughCanvas, context, element);
     });
-  }, [elements, action, selectedElement]);
+  }, [elements, action, selectedElement, canvasSize]);
 
   useEffect(() => {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement | null;
@@ -128,7 +130,7 @@ function Canvas({
   const updateElement = (id: number, type: ElementType, x1: number, y1: number, x2?: number, y2?: number, options?: { text?: string }): void => {
     const elementsCopy = [...elements];
     try {
-      if (type === 'line' || type === 'rectangle' || type === 'triangle') {
+      if (type === 'line' || type === 'rectangle' || type === 'triangle' || type === 'circle' || type === 'ellipse') {
         if (!x2 || !y2) {
           throw new Error('updateElement: x2 and y2 is undefined');
         }
@@ -173,23 +175,24 @@ function Canvas({
     const { mouseX, mouseY } = getMousePosition(event, canvasRect);
     if (tool === 'selection') {
       const element = getElementAtPosition(mouseX, mouseY, elements);
-      if (element) {
-        if (element.type === 'pencil') {
-          const xOffsets = element.points.map((point) => mouseX - point.x);
-          const yOffsets = element.points.map((point) => mouseY - point.y);
-          setSelectedElement({ ...element, xOffsets, yOffsets });
-        } else {
-          const offsetX = mouseX - element.x1;
-          const offsetY = mouseY - element.y1;
-          setSelectedElement({ ...element, offsetX, offsetY });
-        }
-        setElements((prevState: any) => prevState);
+      if (!element) {
+        return;
+      }
+      if (element.type === 'pencil') {
+        const xOffsets = element.points.map((point) => mouseX - point.x);
+        const yOffsets = element.points.map((point) => mouseY - point.y);
+        setSelectedElement({ ...element, xOffsets, yOffsets });
+      } else {
+        const offsetX = mouseX - element.x1;
+        const offsetY = mouseY - element.y1;
+        setSelectedElement({ ...element, offsetX, offsetY });
+      }
+      setElements((prevState: any) => prevState);
 
-        if (element.position === 'inside') {
-          setAction('moving');
-        } else {
-          setAction('resizing');
-        }
+      if (element.position === 'inside') {
+        setAction('moving');
+      } else {
+        setAction('resizing');
       }
     } else if (isElementType(tool)) {
       const id = elements.length;
@@ -343,9 +346,9 @@ function Canvas({
         >
           Canvas
         </canvas>
-        {tool === 'selection' && selectedElement && canvasRect && (
+        {/* {tool === 'selection' && selectedElement && canvasRect && (
           <ElementRect element={selectedElement} canvasOffset={{ x: canvasRect.left, y: canvasRect.top }} />
-        )}
+        )} */}
       </CanvasContainer>
     </Container>
   );
