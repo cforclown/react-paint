@@ -1,80 +1,45 @@
 import {
   ProSidebar, SidebarHeader, Menu, MenuItem,
 } from 'react-pro-sidebar';
-import styled from 'styled-components';
 import Tooltip from 'rc-tooltip';
 import { useDispatch, useSelector } from 'react-redux';
-import { useMemo } from 'react';
+import {
+  ChangeEvent, useMemo, useRef,
+} from 'react';
 import {
   BiSquare, BiBox, BiCircle, BiShapeTriangle,
 } from 'react-icons/bi';
 import {
-  FaPencilAlt, FaTextHeight, FaMinus, FaEllipsisH,
+  FaPencilAlt, FaTextHeight, FaMinus, FaEllipsisH, FaImage,
 } from 'react-icons/fa';
 import { IState } from '../../Reducer/Reducer';
 import { ChangeTool, ShowOrHideColorPicker } from '../../Reducer/Actions';
-import { isToolType, ToolType } from '../../Utils/Element.service';
+import { IRect, isToolType, ToolType } from '../../Utils/Element/Element.service';
 import TooltipContainer from '../Tooltip/Tooltip';
 import SidebarItemsContainer, { ISidebarItem } from './SidebarItem';
-// import items from './SidebarItems';
 import logo from '../../Assets/logo.png';
 import 'react-pro-sidebar/dist/css/styles.css';
+import { putToCenterOf } from '../Canvas/Canvas.service';
 
 const items: ISidebarItem[] = [
-  {
-    id: 'selection',
-    name: 'Selection',
-    icon: <BiBox />,
-  },
-  {
-    id: 'line',
-    name: 'Line',
-    icon: <FaMinus />,
-  },
-  {
-    id: 'rectangle',
-    name: 'Rectangle',
-    icon: <BiSquare />,
-  },
-  {
-    id: 'triangle',
-    name: 'Triangle',
-    icon: <BiShapeTriangle />,
-  },
-  {
-    id: 'circle',
-    name: 'Circle',
-    icon: <BiCircle />,
-  },
-  {
-    id: 'ellipse',
-    name: 'Ellipse',
-    icon: <FaEllipsisH />,
-  },
-  {
-    id: 'pencil',
-    name: 'Pencil',
-    icon: <FaPencilAlt />,
-  },
-  {
-    id: 'text',
-    name: 'Text',
-    icon: <FaTextHeight />,
-  },
+  { id: 'selection', name: 'Selection', icon: <BiBox /> },
+  { id: 'line', name: 'Line', icon: <FaMinus /> },
+  { id: 'rectangle', name: 'Rectangle', icon: <BiSquare /> },
+  { id: 'triangle', name: 'Triangle', icon: <BiShapeTriangle /> },
+  { id: 'circle', name: 'Circle', icon: <BiCircle /> },
+  { id: 'ellipse', name: 'Ellipse', icon: <FaEllipsisH /> },
+  { id: 'pencil', name: 'Pencil', icon: <FaPencilAlt /> },
+  { id: 'text', name: 'Text', icon: <FaTextHeight /> },
 ];
 
-const Container = styled.div`
-  position: relative;
-  display: flex;
-  height: 100vh;
-  background-color: #ddddff;
-  box-shadow: 1px 3px 6px #00000040;
-`;
-
-function Sidebar(): JSX.Element {
+interface ISidebar {
+  insertImage: (image: string | ArrayBuffer, position: IRect) => void;
+  className?: string;
+}
+function SidebarBase({ insertImage, className }: ISidebar): JSX.Element {
   const dispatch = useDispatch();
-  const currentTool = useSelector<IState>((state) => state.tool) as string;
-  const currentColor = useSelector<IState>((state) => state.color) as string;
+  const { tool, color, canvasSize } = useSelector<IState>((state) => state) as IState;
+  const insertImageInputRef = useRef<HTMLInputElement>(null);
 
   const handleItemOnClick = (item: ISidebarItem): void => {
     if (!isToolType(item.id)) {
@@ -87,12 +52,46 @@ function Sidebar(): JSX.Element {
     dispatch(ShowOrHideColorPicker(true));
   };
 
+  const onImageSelected = (e: ChangeEvent<HTMLInputElement>): void => {
+    const { files } = e.target;
+    if (files && files[0]) {
+      const reader = new FileReader();
+      reader.onload = async (et: ProgressEvent<FileReader>) => {
+        try {
+          if (!et.target) {
+            throw new Error('ERROR: happen when parsing image file');
+          }
+          const bstr = et.target.result;
+          if (!bstr) {
+            throw new Error('ERROR: image buffer is null');
+          }
+
+          const size = {
+            width: 200,
+            height: 100,
+          };
+          const position = putToCenterOf(size, canvasSize);
+          insertImage(bstr, {
+            ...position,
+            ...size,
+          });
+        } catch (err) {
+          if (err instanceof Error) {
+            // eslint-disable-next-line no-console
+            console.error(err.message);
+          }
+        }
+      };
+      reader.readAsDataURL(files[0]);
+    }
+  };
+
   const sidebarItems = useMemo(() => items.map((item, index) => (
-    <SidebarItemsContainer key={index} {...item} onClick={handleItemOnClick} isActive={item.id === currentTool} />
-  )), [currentTool]);
+    <SidebarItemsContainer key={index} {...item} onClick={handleItemOnClick} isActive={item.id === tool} />
+  )), [tool]);
 
   return (
-    <Container>
+    <div className={className}>
       <ProSidebar width="240px" collapsed color="red" style={{ backgroundColor: 'red' }}>
         <SidebarHeader>
           <div style={{ textAlign: 'center', paddingTop: '0.4rem', paddingBottom: '0.2rem' }}>
@@ -106,12 +105,22 @@ function Sidebar(): JSX.Element {
         <Menu iconShape="round">
           {sidebarItems}
 
+          <Tooltip overlay={<TooltipContainer>Insert image</TooltipContainer>}>
+            <MenuItem
+              onClick={() => insertImageInputRef?.current?.click()}
+              icon={<FaImage />}
+              popperarrow
+            >
+              Insert image
+            </MenuItem>
+          </Tooltip>
+
           <div style={{ height: '8px', marginBottom: '8px', borderBottom: '1px solid #636e7250' }} />
 
           <Tooltip overlay={<TooltipContainer>Color picker</TooltipContainer>}>
             <MenuItem
               onClick={handleColorClick}
-              icon={<div style={{ width: '100%', height: '100%', backgroundColor: currentColor }} />}
+              icon={<div style={{ width: '100%', height: '100%', backgroundColor: color }} />}
               popperarrow
             >
               Color picker
@@ -119,8 +128,17 @@ function Sidebar(): JSX.Element {
           </Tooltip>
         </Menu>
       </ProSidebar>
-    </Container>
+      <input
+        className="image-uploader"
+        id="image-uploader"
+        type="file"
+        accept=".png,.jpeg,.jpg"
+        multiple
+        onChange={onImageSelected}
+        ref={insertImageInputRef}
+      />
+    </div>
   );
 }
 
-export default Sidebar;
+export default SidebarBase;

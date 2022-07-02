@@ -1,9 +1,10 @@
 import {
   ICircleOptions,
   IEllipseOptions,
+  IImageOptions,
   ILineOptions, IPencilOptions, IRectangleOptions, ITextOptions, ITriangleOptions,
-} from '../Types/Common';
-import { ToolType } from '../Utils/Element.service';
+} from '../Utils/Element/ElementOption/ElementOption.service';
+import { ToolType } from '../Utils/Element/Element.service';
 import { IReducerAction } from './Actions';
 import ActionTypes from './ActionTypes';
 
@@ -21,6 +22,7 @@ export interface IState {
     ellipse: IEllipseOptions;
     pencil: IPencilOptions;
     text: ITextOptions;
+    image: IImageOptions;
   };
   color: string;
   showColorModal: boolean;
@@ -31,39 +33,45 @@ const defaultState: IState = {
     width: 800,
     height: 600,
   },
-  tool: 'pencil',
+  tool: 'rectangle',
   toolOptions: {
     line: {
-      strokeWidth: 4,
+      bowing: 0,
+      strokeWidth: 1,
       roughness: 0,
     },
     rectangle: {
-      strokeWidth: 4,
+      bowing: 0,
+      strokeWidth: 1,
       roughness: 0,
       fillStyle: 'solid',
     },
     triangle: {
-      strokeWidth: 4,
+      bowing: 0,
+      strokeWidth: 1,
       roughness: 0,
       fillStyle: 'solid',
     },
     circle: {
-      strokeWidth: 4,
+      bowing: 0,
+      strokeWidth: 1,
       roughness: 0,
       fillStyle: 'solid',
     },
     ellipse: {
-      strokeWidth: 4,
+      bowing: 0,
+      strokeWidth: 1,
       roughness: 0,
       fillStyle: 'solid',
     },
     pencil: {
-      strokeWidth: 8,
+      strokeWidth: 4,
     },
     text: {
       fontSize: 20,
       fontWeight: 'normal',
     },
+    image: {},
   },
   color: '#FF0000',
   showColorModal: false,

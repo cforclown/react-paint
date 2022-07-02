@@ -1,64 +1,59 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Form } from 'react-bootstrap';
 import { FaRedo, FaUndo } from 'react-icons/fa';
-import { useDispatch } from 'react-redux';
-import styled from 'styled-components';
+import { useDispatch, useSelector } from 'react-redux';
 import { ChangeCanvasSize } from '../../Reducer/Actions';
-
-const Container = styled.div`
-  height: 80px;
-  background-color: #636e72;
-  padding: 12px 16px;
-  color: white;
-  display: flex;
-  flex-direction: row;
-  justify-content: left;
-  align-items: center;
-  > * {
-    margin: 0 12px 0 0 !important;
-    font-weight: bold;
-  }
-  > input {
-    font-weight: normal;
-    width: 100px;
-  }
-  > .separator {
-    background-color: #80808080;
-    width: 1px;
-    height: 100%;
-  }
-`;
+import { IState } from '../../Reducer/Reducer';
+import { ElementType, isElementType, TypeElement } from '../../Utils/Element/Element.service';
+import { ElementOptionConfigs } from '../../Utils/Element/ElementOption/ElementOption.service';
 
 interface IHeader {
   undo: () => void;
   redo: () => void;
+  selectedElement?: TypeElement | null;
+  className?: string;
 }
 
-function Header({ undo, redo }: IHeader):JSX.Element {
+function HeaderBase({
+  undo, redo, selectedElement, className,
+}: IHeader):JSX.Element {
   const dispatch = useDispatch();
+  const { tool, toolOptions } = useSelector<IState>((state) => state) as IState;
   const [canvasSize, setCanvasSize] = useState({
     width: 800,
     height: 600,
   });
 
+  const currentOptionType = selectedElement ? selectedElement.type as ElementType : isElementType(tool) ? tool : null;
+  const currentOptions = currentOptionType && toolOptions[currentOptionType];
+  const optionsFields = useMemo(() => {
+    if (!currentOptionType) {
+      return null;
+    }
+    return ElementOptionConfigs[currentOptionType];
+  }, [currentOptionType]);
+
   return (
-    <Container>
-      <Button onClick={undo}>
+    <div className={className}>
+      <HeaderBtn onClick={undo}>
         <FaUndo />
-      </Button>
-      <Button onClick={redo}>
+      </HeaderBtn>
+      <HeaderBtn onClick={redo}>
         <FaRedo />
-      </Button>
+      </HeaderBtn>
       <div className="separator" />
       <p>Canvas size</p>
       <Form.Control type="number" onChange={(e) => setCanvasSize({ ...canvasSize, width: e.target.value as unknown as number })} value={canvasSize.width} />
       <Form.Control type="number" onChange={(e) => setCanvasSize({ ...canvasSize, height: e.target.value as unknown as number })} value={canvasSize.height} />
-      <Button onClick={() => dispatch(ChangeCanvasSize(canvasSize))}>
+      <HeaderBtn onClick={() => dispatch(ChangeCanvasSize(canvasSize))}>
         Apply
-      </Button>
+      </HeaderBtn>
       <div className="separator" />
-    </Container>
+    </div>
   );
 }
 
-export default Header;
+const HeaderBtn = ({ children, ...props }: any): JSX.Element => <Button variant="dark" {...props}>{children}</Button>;
+const OptionsFormBtn = ({ children, ...props }: any): JSX.Element => <Button variant="success" {...props}>{children}</Button>;
+
+export default HeaderBase;

@@ -11,7 +11,6 @@ import {
   cursorForPosition,
   adjustmentRequired,
   adjustElementCoordinates,
-  CanvasAction,
 } from './Canvas.service';
 import {
   isElementType,
@@ -26,8 +25,15 @@ import {
   IPoint,
 } from '../../Utils/Element/Element.service';
 import { IState } from '../../Reducer/Reducer';
-import ElementRect from '../ElementRect/ElementRect';
+// import ElementRect from '../ElementRect/ElementRect';
 
+function getMousePosition(mouseEvent: React.MouseEvent<HTMLCanvasElement>, canvasRect: DOMRect): { mouseX: number; mouseY: number; } {
+  const { clientX, clientY } = mouseEvent;
+  return {
+    mouseX: clientX - canvasRect.left,
+    mouseY: clientY - canvasRect.top,
+  };
+}
 function getMousePoint(mouseEvent: React.MouseEvent<HTMLCanvasElement>, canvasRect: DOMRect): IPoint {
   const { clientX, clientY } = mouseEvent;
   return {
@@ -42,24 +48,18 @@ interface ICanvas {
   setElements: (state: any, overwrite?: boolean | undefined) => void;
   undo: () => void;
   redo: () => void;
-  currentElement?: TypeElement;
-  setCurrentElement: (element: TypeElement) => void;
+  selectedElement: TypeElement | null;
+  setSelectedElement: (element: TypeElement | null) => void;
   className?: string;
 }
 
 function CanvasBase({
-  roughGeneratopr: generator,
-  elements,
-  setElements,
-  undo, redo,
-  currentElement, setCurrentElement,
-  className,
+  roughGeneratopr: generator, elements, setElements, undo, redo, selectedElement, setSelectedElement, className,
 }: ICanvas): JSX.Element {
   const {
     tool, toolOptions, canvasSize, color,
   } = useSelector<IState>((state) => state) as IState;
-  const [action, setAction] = useState<CanvasAction>('none');
-  const [selectedElement, setSelectedElement] = useState<TypeElement | null>(null);
+  const [action, setAction] = useState('none');
   const [canvasRect, setCanvasRect] = useState<DOMRect>();
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -169,26 +169,6 @@ function CanvasBase({
     setElements(elementsCopy, true);
   };
 
-  const handleLeftClick = (event: React.MouseEvent<HTMLCanvasElement>): void => {
-    if (!canvasRect || tool !== 'selection') {
-      return;
-    }
-    const mousePos = getMousePoint(event, canvasRect);
-    const element = getElementAtPosition(mousePos, elements);
-    if (!element) {
-      return;
-    }
-    if (element.type === 'pencil') {
-      const xOffsets = element.points.map((point) => mousePos.x - point.x);
-      const yOffsets = element.points.map((point) => mousePos.y - point.y);
-      setCurrentElement({ ...element, xOffsets, yOffsets });
-    } else {
-      const offsetX = mousePos.x - element.x1;
-      const offsetY = mousePos.y - element.y1;
-      setCurrentElement({ ...element, offsetX, offsetY });
-    }
-  };
-
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>): void => {
     if (!canvasRect || action === 'writing') {
       return;
@@ -224,7 +204,6 @@ function CanvasBase({
       }
       setElements((prevState: any) => [...prevState, element]);
       setSelectedElement(element);
-      setCurrentElement(element);
       setAction(tool === 'text' ? 'writing' : 'drawing');
     }
   };
@@ -294,12 +273,12 @@ function CanvasBase({
       return;
     }
 
-    const mousePos = getMousePoint(event, canvasRect);
+    const { mouseX, mouseY } = getMousePosition(event, canvasRect);
     if (selectedElement) {
       if (
         selectedElement.type === 'text'
-        && mousePos.x - selectedElement.offsetX === selectedElement.x1
-        && mousePos.y - selectedElement.offsetY === selectedElement.y1
+        && mouseX - selectedElement.offsetX === selectedElement.x1
+        && mouseY - selectedElement.offsetY === selectedElement.y1
       ) {
         setAction('writing');
         return;
@@ -312,9 +291,6 @@ function CanvasBase({
           x1, y1, x2, y2,
         } = adjustElementCoordinates(elements[index]);
         updateElement(id, type, x1, y1, x2, y2);
-      }
-      if (tool === 'selection') {
-        setCurrentElement(selectedElement);
       }
     }
 
@@ -339,54 +315,43 @@ function CanvasBase({
     updateElement(id, type, x1, y1, undefined, undefined, { text: event.target.value });
   };
 
-  const textArea = (action === 'writing' && selectedElement && selectedElement.type !== 'pencil') && (
-    <textarea
-      className="text-area"
-      ref={textAreaRef}
-      onBlur={handleBlur}
-      style={{
-        position: 'fixed',
-        top: selectedElement.y1 - 2,
-        left: selectedElement.x1,
-        font: '24px sans-serif',
-        margin: 0,
-        padding: 0,
-        outline: 0,
-        // resize: 'auto',
-        resize: 'both',
-        overflow: 'hidden',
-        whiteSpace: 'pre',
-        background: 'transparent',
-      }}
-    />
-  );
-
-  // const currentElementRect = currentElement && canvasRect && (
-  //   <ElementRect
-  //     element={currentElement}
-  //     canvasOffset={{ x: canvasRect.left, y: canvasRect.top }}
-  //     onCanvasMouseDown={handleMouseDown}
-  //     onCanvasMouseMove={handleMouseMove}
-  //     onCanvasMouseUp={handleMouseUp}
-  //   />
-  // );
-
   return (
     <div className={className}>
       <div className="canvas-container" id="canvas-container">
-        {textArea}
+        {(action === 'writing' && selectedElement && selectedElement.type !== 'pencil') ? (
+          <textarea
+            className="text-area"
+            ref={textAreaRef}
+            onBlur={handleBlur}
+            style={{
+              position: 'fixed',
+              top: selectedElement.y1 - 2,
+              left: selectedElement.x1,
+              font: '24px sans-serif',
+              margin: 0,
+              padding: 0,
+              outline: 0,
+              // resize: 'auto',
+              resize: 'both',
+              overflow: 'hidden',
+              whiteSpace: 'pre',
+              background: 'transparent',
+            }}
+          />
+        ) : null}
         <canvas
           id="canvas"
           width={canvasSize.width}
           height={canvasSize.height}
-          onClick={handleLeftClick}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
         >
           Canvas
         </canvas>
-        {/* {currentElementRect} */}
+        {/* {tool === 'selection' && selectedElement && canvasRect && (
+          <ElementRect element={selectedElement} canvasOffset={{ x: canvasRect.left, y: canvasRect.top }} />
+        )} */}
       </div>
     </div>
   );

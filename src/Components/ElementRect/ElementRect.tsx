@@ -1,6 +1,6 @@
 import styled from 'styled-components';
-import { TypeElement } from '../../Utils/Element.service';
-import { getElementRect, IElementRect } from '../Canvas/Canvas.service';
+import { IRect, TypeElement } from '../../Utils/Element/Element.service';
+import { getElementRect } from '../Canvas/Canvas.service';
 
 const Container = styled.div`
   position: absolute;
@@ -12,10 +12,19 @@ interface IElementRectProps {
   canvasOffset: {
     x: number;
     y: number
-  }
+  },
+  onCanvasMouseDown: React.MouseEventHandler<HTMLCanvasElement>;
+  onCanvasMouseMove: React.MouseEventHandler<HTMLCanvasElement>;
+  onCanvasMouseUp: React.MouseEventHandler<HTMLCanvasElement>;
 }
-function ElementRect({ element, canvasOffset }: IElementRectProps): JSX.Element {
-  const elementRect = getElementRect(element) as unknown as IElementRect;
+function ElementRect({
+  element,
+  canvasOffset,
+  onCanvasMouseDown,
+  onCanvasMouseMove,
+  onCanvasMouseUp,
+}: IElementRectProps): JSX.Element {
+  const elementRect = getElementRect({ ...element }) as unknown as IRect;
   return (
     <Container
       style={{
@@ -24,6 +33,9 @@ function ElementRect({ element, canvasOffset }: IElementRectProps): JSX.Element 
         width: elementRect.width,
         height: elementRect.height,
       }}
+      onMouseDown={(e) => onCanvasMouseDown(e as unknown as React.MouseEvent<HTMLCanvasElement>)}
+      onMouseMove={(e) => onCanvasMouseMove(e as unknown as React.MouseEvent<HTMLCanvasElement>)}
+      onMouseUp={(e) => onCanvasMouseUp(e as unknown as React.MouseEvent<HTMLCanvasElement>)}
     />
   );
 }

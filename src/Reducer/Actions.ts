@@ -1,4 +1,4 @@
-import { ToolType } from '../Utils/Element.service';
+import { ToolType } from '../Utils/Element/Element.service';
 import ActionTypes from './ActionTypes';
 
 export interface IReducerAction {

@@ -1,13 +1,14 @@
 import { Drawable } from 'roughjs/bin/core';
 import { RoughGenerator } from 'roughjs/bin/generator';
 import { Point } from 'roughjs/bin/geometry';
-import { IElementOption, ToolOptions } from '../Types/Common';
+import { ToolOptions } from './ElementOption/ElementOption.service';
 
 const ShapeElementTypes = ['line', 'rectangle', 'triangle', 'circle', 'ellipse'] as const;
 export type ShapeElementType = (typeof ShapeElementTypes)[number];
 export const isShapeElementType = (type: any): type is ShapeElementType => ShapeElementTypes.includes(type);
+export type TypeShape = ILineElement | IRectangleElement | ITriangleElement | ICircleElement | IEllipseElement
 
-const ElementTypes = [...ShapeElementTypes, 'pencil', 'text'] as const;
+const ElementTypes = [...ShapeElementTypes, 'pencil', 'text', 'image'] as const;
 export type ElementType = (typeof ElementTypes)[number];
 export const isElementType = (type: any): type is ElementType => ElementTypes.includes(type);
 
@@ -15,12 +16,12 @@ const ToolTypes = ['selection', ...ShapeElementTypes, 'pencil', 'text'] as const
 export type ToolType = (typeof ToolTypes)[number];
 export const isToolType = (tool: any): tool is ToolType => ToolTypes.includes(tool);
 
-export type TypeElement = ILineElement | IRectangleElement | ITriangleElement | ICircleElement | IEllipseElement | IPencilElement | ITextElement
+export type TypeElement = ILineElement | IRectangleElement | ITriangleElement | ICircleElement | IEllipseElement | IPencilElement | ITextElement | IImageElement
 export interface IElement {
   id: number;
   type: ElementType;
   color: string;
-  options?: ToolOptions
+  options?: Record<string, any>;
   position?: string | null;
 }
 
@@ -28,6 +29,13 @@ export interface IPoint {
   x: number;
   y: number;
 }
+
+export interface ISize {
+  width: number;
+  height: number;
+}
+
+export interface IRect extends IPoint, ISize {}
 
 export type PositionType = 'tl' | 'br' | 'start' | 'end' | 'tr' | 'bl' | 'inside'
 
@@ -75,6 +83,16 @@ export interface ITextElement extends IElement {
   offsetY: number;
   text: string;
   color: string;
+}
+export interface IImageElement extends IElement {
+  type: 'image';
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  image: string | ArrayBuffer;
+  offsetX: number;
+  offsetY: number;
 }
 
 export interface IElementCoordinate {
@@ -242,6 +260,28 @@ export function createEllipse(
   };
 }
 
+export function createImage(
+  id: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  image: string | ArrayBuffer,
+): IImageElement {
+  return {
+    id,
+    type: 'image',
+    x1,
+    y1,
+    x2,
+    y2,
+    image,
+    offsetX: 0,
+    offsetY: 0,
+    color: 'none',
+  };
+}
+
 export const createElement = (
   roughGeneratopr: RoughGenerator,
   id: number,
@@ -252,6 +292,7 @@ export const createElement = (
   y2: number,
   color: string,
   options: Record<string, any>,
+  image?: string | ArrayBuffer,
 ): TypeElement | null => {
   if (type === 'line') {
     return createLine(id, x1, y1, x2, y2, roughGeneratopr, color, options);
@@ -292,41 +333,20 @@ export const createElement = (
       color,
     };
   }
+  if (type === 'image' && image) {
+    return {
+      id,
+      type,
+      x1,
+      y1,
+      x2,
+      y2,
+      image,
+      offsetX: 0,
+      offsetY: 0,
+      color,
+    };
+  }
 
   return null;
-};
-
-const CommonStrokeWidthOption: IElementOption = {
-  id: 'strokeWidth',
-  name: 'Stroke width',
-  type: {
-    value: 'number',
-    default: 4,
-  },
-};
-
-export type ElementOptions = Record<ElementType, IElementOption[]>
-
-export const LineOptions: ElementOptions = {
-  line: [
-    CommonStrokeWidthOption,
-  ],
-  rectangle: [
-    CommonStrokeWidthOption,
-  ],
-  triangle: [
-    CommonStrokeWidthOption,
-  ],
-  circle: [
-    CommonStrokeWidthOption,
-  ],
-  ellipse: [
-    CommonStrokeWidthOption,
-  ],
-  pencil: [
-    CommonStrokeWidthOption,
-  ],
-  text: [
-    CommonStrokeWidthOption,
-  ],
 };

@@ -1,9 +1,8 @@
 import getStroke from 'perfect-freehand';
 import { RoughCanvas } from 'roughjs/bin/canvas';
 import {
-  IElementCoordinate, IPoint, PositionType, TypeElement, isShapeElementType, ISize, IRect,
+  IElementCoordinate, IPoint, PositionType, TypeElement, isShapeElementType, ISize,
 } from '../../Utils/Element/Element.service';
-import { getElementOptions } from '../../Utils/Element/ElementOption/ElementOption.service';
 
 const CanvasActions = ['none', 'drawing', 'writing', 'moving', 'resizing'] as const;
 export type CanvasAction = (typeof CanvasActions)[number];
@@ -226,7 +225,8 @@ export const drawElement = (roughCanvas: RoughCanvas, context: CanvasRenderingCo
 
 export const adjustmentRequired = (type: string): boolean => isShapeElementType(type);
 
-export const getElementRect = (element: TypeElement): IRect | null => {
+export interface IElementRect { x: number, y: number, width: number, height: number }
+export const getElementRect = (element: TypeElement): IElementRect | null => {
   if (element.type === 'line') {
     return {
       x: element.x1,
@@ -264,51 +264,6 @@ export const getElementRect = (element: TypeElement): IRect | null => {
 
   return null;
 };
-// export const getElementRectWithStrokeWidthOffset = (element: TypeElement): IRect | null => {
-//   let { strokeWidth } = getElementOptions(element);
-//   if (!strokeWidth) {
-//     strokeWidth = 0;
-//   }
-
-//   if (element.type === 'line') {
-//     const x =  element.x1 - strokeWidth,
-//     const y = element.y1 - strokeWidth,
-//     return {
-//       x,
-//       y
-//       width: element.x2 - x + strokeWidth,
-//       height: element.y2 - y + strokeWidth,
-//     };
-//   }
-//   if (element.type === 'rectangle' || element.type === 'triangle' || element.type === 'circle' || element.type === 'ellipse') {
-//     return {
-//       x: element.x1,
-//       y: element.y1,
-//       width: element.x2 - element.x1,
-//       height: element.y2 - element.y1,
-//     };
-//   }
-//   if (element.type === 'pencil') {
-//     const x = Math.min(...element.points.map((p) => p.x));
-//     const y = Math.min(...element.points.map((p) => p.y));
-//     return {
-//       x,
-//       y,
-//       width: Math.max(...element.points.map((p) => p.x)) - x,
-//       height: Math.max(...element.points.map((p) => p.y)) - y,
-//     };
-//   }
-//   if (element.type === 'text') {
-//     return {
-//       x: element.x1,
-//       y: element.y1,
-//       width: element.x2 - element.x1,
-//       height: element.y2 - element.y1,
-//     };
-//   }
-
-//   return null;
-// };
 
 export const centerOf = (rect: ISize): IPoint => ({
   x: rect.width / 2,
