@@ -36,7 +36,7 @@ const Layers = styled(LayersBase)`
       display: flex;
       flex-direction: row;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: space-between;
       margin: 0 0 8px 8px;
       cursor: pointer;
       padding: 0.4rem 0.6rem;
@@ -47,6 +47,17 @@ const Layers = styled(LayersBase)`
       :hover {
         outline: 4px solid #00000044;
         text-shadow: 0px 0px 12px white;
+      }
+
+      .title {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+      }
+
+      button {
+        padding: 0 0.5rem 0.5rem 0.5rem;
       }
     }
   }

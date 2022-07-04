@@ -1,18 +1,18 @@
 import { Drawable } from 'roughjs/bin/core';
 import { RoughGenerator } from 'roughjs/bin/generator';
 import { Point } from 'roughjs/bin/geometry';
-import { ToolOptions } from './ElementOption/ElementOption.service';
+import { getElementOptions, ToolOptions } from './ElementOption/ElementOption.service';
 
 const ShapeElementTypes = ['line', 'rectangle', 'triangle', 'circle', 'ellipse'] as const;
 export type ShapeElementType = (typeof ShapeElementTypes)[number];
 export const isShapeElementType = (type: any): type is ShapeElementType => ShapeElementTypes.includes(type);
-export type TypeShape = ILineElement | IRectangleElement | ITriangleElement | ICircleElement | IEllipseElement
+export type TypeShapeElement = ILineElement | IRectangleElement | ITriangleElement | ICircleElement | IEllipseElement
 
 const ElementTypes = [...ShapeElementTypes, 'pencil', 'text', 'image'] as const;
 export type ElementType = (typeof ElementTypes)[number];
 export const isElementType = (type: any): type is ElementType => ElementTypes.includes(type);
 
-const ToolTypes = ['selection', ...ShapeElementTypes, 'pencil', 'text'] as const;
+const ToolTypes = ['selection', ...ElementTypes] as const;
 export type ToolType = (typeof ToolTypes)[number];
 export const isToolType = (tool: any): tool is ToolType => ToolTypes.includes(tool);
 
@@ -20,9 +20,20 @@ export type TypeElement = ILineElement | IRectangleElement | ITriangleElement | 
 export interface IElement {
   id: number;
   type: ElementType;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
   color: string;
   options?: Record<string, any>;
   position?: string | null;
+}
+
+export interface IShapeElement extends IElement{
+  type: ShapeElementType;
+  offsetX: number;
+  offsetY: number;
+  roughElement: Drawable;
 }
 
 export interface IPoint {
@@ -39,30 +50,23 @@ export interface IRect extends IPoint, ISize {}
 
 export type PositionType = 'tl' | 'br' | 'start' | 'end' | 'tr' | 'bl' | 'inside'
 
-export interface ILineElement extends IElement {
+export interface ILineElement extends Omit<IShapeElement, 'type'> {
   type: 'line';
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  offsetX: number;
-  offsetY: number;
-  roughElement: Drawable;
 }
 
-export interface IRectangleElement extends Omit<ILineElement, 'type'> {
+export interface IRectangleElement extends Omit<IShapeElement, 'type'> {
   type: 'rectangle'
 }
 
-export interface ITriangleElement extends Omit<ILineElement, 'type'> {
+export interface ITriangleElement extends Omit<IShapeElement, 'type'> {
   type: 'triangle'
 }
 
-export interface ICircleElement extends Omit<ILineElement, 'type'> {
+export interface ICircleElement extends Omit<IShapeElement, 'type'> {
   type: 'circle'
 }
 
-export interface IEllipseElement extends Omit<ILineElement, 'type'> {
+export interface IEllipseElement extends Omit<IShapeElement, 'type'> {
   type: 'ellipse'
 }
 
@@ -73,26 +77,13 @@ export interface IPencilElement extends IElement {
   yOffsets: number[];
 }
 
-export interface ITextElement extends IElement {
+export interface ITextElement extends Omit<IShapeElement, 'type' | 'roughElement'> {
   type: 'text';
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  offsetX: number;
-  offsetY: number;
   text: string;
-  color: string;
 }
-export interface IImageElement extends IElement {
+export interface IImageElement extends Omit<IShapeElement, 'type' | 'roughElement'> {
   type: 'image';
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
   image: string | ArrayBuffer;
-  offsetX: number;
-  offsetY: number;
 }
 
 export interface IElementCoordinate {
@@ -313,6 +304,10 @@ export const createElement = (
     return {
       id,
       type,
+      x1,
+      y1,
+      x2: x1,
+      y2: y1,
       points: [{ x: x1, y: y1 }],
       xOffsets: [],
       yOffsets: [],
@@ -349,4 +344,74 @@ export const createElement = (
   }
 
   return null;
+};
+
+export const getElementRect = (element: TypeElement): IRect | null => {
+  if (element.type === 'line') {
+    return {
+      x: element.x1,
+      y: element.y1,
+      width: element.x2 - element.x1,
+      height: element.y2 - element.y1,
+    };
+  }
+  if (element.type === 'rectangle' || element.type === 'triangle' || element.type === 'circle' || element.type === 'ellipse') {
+    return {
+      x: element.x1,
+      y: element.y1,
+      width: element.x2 - element.x1,
+      height: element.y2 - element.y1,
+    };
+  }
+  if (element.type === 'pencil') {
+    const x = Math.min(...element.points.map((p) => p.x));
+    const y = Math.min(...element.points.map((p) => p.y));
+    return {
+      x,
+      y,
+      width: Math.max(...element.points.map((p) => p.x)) - x,
+      height: Math.max(...element.points.map((p) => p.y)) - y,
+    };
+  }
+  if (element.type === 'text') {
+    return {
+      x: element.x1,
+      y: element.y1,
+      width: element.x2 - element.x1,
+      height: element.y2 - element.y1,
+    };
+  }
+
+  return null;
+};
+export const getElementRectWithStrokeWidthOffset = (element: TypeElement): IRect => {
+  let { strokeWidth } = getElementOptions(element);
+  if (!strokeWidth) {
+    strokeWidth = 0;
+  }
+
+  if (element.type === 'pencil') {
+    const { points } = element as IPencilElement;
+    const x = Math.min(...points.map((p) => p.x)) - strokeWidth;
+    const y = Math.min(...points.map((p) => p.y)) - strokeWidth;
+    return {
+      x,
+      y,
+      width: Math.max(...points.map((p) => p.x)) - x + strokeWidth,
+      height: Math.max(...points.map((p) => p.y)) - y + strokeWidth,
+    };
+  }
+
+  const {
+    x1, y1, x2, y2,
+  } = element;
+  const x = x1 - strokeWidth;
+  const y = y1 - strokeWidth;
+
+  return {
+    x,
+    y,
+    width: x2 - x + strokeWidth,
+    height: y2 - y + strokeWidth,
+  };
 };

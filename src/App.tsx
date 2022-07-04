@@ -7,7 +7,7 @@ import ColorPicker from './Components/ColorPicker/ColorPicker';
 import Header from './Components/Header/Header.style';
 import Sidebar from './Components/Sidebar/Sidebar.style';
 import { useHistory } from './Hooks/UseHistory';
-import { ChangeColor, ShowOrHideColorPicker } from './Reducer/Actions';
+import { ChangeColor, ChangeTool, ShowOrHideColorPicker } from './Reducer/Actions';
 import { IState } from './Reducer/Reducer';
 import { createElement, IRect, TypeElement } from './Utils/Element/Element.service';
 import Layers from './Components/Layers/Layers.style';
@@ -54,8 +54,25 @@ function App({ className }: { className?: string}): JSX.Element {
     setElements((prevElements: any) => [...prevElements, imageElement]);
   };
 
+  const handleDeleteElement = (element: TypeElement): void => {
+    // remove element and adjust the id (index)
+    const currentElements = elements.reduce((acc, curr, index) => {
+      if (curr.id === element.id) {
+        return acc;
+      }
+      const e = { ...curr, id: index };
+      acc.push(e);
+      return acc;
+    }, []);
+    setElements(currentElements);
+    if (currentElement && currentElement.id === element.id) {
+      setCurrentElement(undefined);
+    }
+  };
+
   const handleLayerClick = (element: TypeElement): void => {
     setCurrentElement(element);
+    dispatch(ChangeTool('selection'));
   };
 
   const images = useMemo(() => elements.filter((e) => e.type === 'image').map((e, i) => (
@@ -85,7 +102,12 @@ function App({ className }: { className?: string}): JSX.Element {
           </Modal.Body>
         </Modal>
       </div>
-      <Layers elements={elements} selectedElement={currentElement} onLayerClick={handleLayerClick} />
+      <Layers
+        elements={elements}
+        selectedElement={currentElement}
+        onLayerClick={handleLayerClick}
+        onDeleteElement={handleDeleteElement}
+      />
       <div className="images-container">
         {images}
       </div>

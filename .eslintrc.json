@@ -41,6 +41,7 @@
     "no-underscore-dangle": "off",
     "no-restricted-globals": "off",
     "no-nested-ternary": "off",
+    "no-unused-expressions": "off",
     "react/react-in-jsx-scope": "off",
     "react/prop-types": "off",
     "react/forbid-prop-types": "off",

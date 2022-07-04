@@ -1,11 +1,13 @@
 import getStroke from 'perfect-freehand';
 import { RoughCanvas } from 'roughjs/bin/canvas';
 import {
-  IElementCoordinate, IPoint, PositionType, TypeElement, isShapeElementType, ISize, IRect,
+  IElementCoordinate, IPoint, PositionType, TypeElement, isShapeElementType, ISize,
 } from '../../Utils/Element/Element.service';
-import { getElementOptions } from '../../Utils/Element/ElementOption/ElementOption.service';
 
-const CanvasActions = ['none', 'drawing', 'writing', 'moving', 'resizing'] as const;
+const SelectionToolActions = ['none', 'moving', 'resizing'] as const;
+export type SelectionToolAction = (typeof SelectionToolActions)[number];
+
+const CanvasActions = ['drawing', 'writing', ...SelectionToolActions] as const;
 export type CanvasAction = (typeof CanvasActions)[number];
 
 export const onLine = (lineStart: IPoint, lineEnd: IPoint, reference: IPoint, maxDistance = 1): 'inside' | null => {
@@ -23,31 +25,21 @@ export const nearPoint = (
 
 const positionWithinElement = (reference: IPoint, element: TypeElement): string | null => {
   const { type } = element;
+  const {
+    x1, y1, x2, y2,
+  } = element;
+  const topLeftPoint = { x: x1, y: y1 };
+  const topRightPoint = { x: x2, y: y1 };
+  const bottomRightPoint = { x: x2, y: y2 };
+  const bottomLeftPoint = { x: x1, y: y2 };
+
   if (type === 'line') {
-    const {
-      x1, y1, x2, y2,
-    } = element;
-    const topLeft = {
-      x: x1,
-      y: y1,
-    };
-    const bottomRight = {
-      x: x2,
-      y: y2,
-    };
-    const on = onLine(topLeft, bottomRight, reference);
-    const start = nearPoint(reference, topLeft, 'start');
-    const end = nearPoint(reference, bottomRight, 'end');
+    const on = onLine(topLeftPoint, bottomRightPoint, reference);
+    const start = nearPoint(reference, topLeftPoint, 'start');
+    const end = nearPoint(reference, bottomRightPoint, 'end');
     return start || end || on;
   }
   if (type === 'rectangle' || type === 'triangle' || type === 'circle' || type === 'ellipse') {
-    const {
-      x1, y1, x2, y2,
-    } = element;
-    const topLeftPoint = { x: x1, y: y1 };
-    const topRightPoint = { x: x2, y: y1 };
-    const bottomRightPoint = { x: x2, y: y2 };
-    const bottomLeftPoint = { x: x1, y: y2 };
     const topLeft = nearPoint(reference, topLeftPoint, 'tl');
     const topRight = nearPoint(reference, topRightPoint, 'tr');
     const bottomRight = nearPoint(reference, bottomRightPoint, 'br');
@@ -64,19 +56,9 @@ const positionWithinElement = (reference: IPoint, element: TypeElement): string 
     return betweenAnyPoint ? 'inside' : null;
   }
   if (type === 'text') {
-    const {
-      x1, y1, x2, y2,
-    } = element;
     return reference.x >= x1 && reference.x <= x2 && reference.y >= y1 && reference.y <= y2 ? 'inside' : null;
   }
   if (type === 'image') {
-    const {
-      x1, y1, x2, y2,
-    } = element;
-    const topLeftPoint = { x: x1, y: y1 };
-    const topRightPoint = { x: x2, y: y1 };
-    const bottomRightPoint = { x: x2, y: y2 };
-    const bottomLeftPoint = { x: x1, y: y2 };
     const topLeft = nearPoint(reference, topLeftPoint, 'tl');
     const topRight = nearPoint(reference, topRightPoint, 'tr');
     const bottomRight = nearPoint(reference, bottomRightPoint, 'br');
@@ -108,7 +90,7 @@ export const adjustElementCoordinates = (element: TypeElement): IElementCoordina
   const {
     type, x1, y1, x2, y2,
   } = element;
-  if (type === 'rectangle' || type === 'triangle') {
+  if (isShapeElementType(type)) {
     const minX = Math.min(x1, x2);
     const maxX = Math.max(x1, x2);
     const minY = Math.min(y1, y2);
@@ -130,21 +112,6 @@ export const adjustElementCoordinates = (element: TypeElement): IElementCoordina
     x2: x1,
     y2: y1,
   };
-};
-
-export const cursorForPosition = (position?: PositionType): string => {
-  switch (position) {
-    case 'tl':
-    case 'br':
-    case 'start':
-    case 'end':
-      return 'nwse-resize';
-    case 'tr':
-    case 'bl':
-      return 'nesw-resize';
-    default:
-      return 'move';
-  }
 };
 
 export const resizedCoordinates = (clientX: number, clientY: number, coordinates: IElementCoordinate, position?: string | null): IElementCoordinate | null => {
@@ -225,90 +192,6 @@ export const drawElement = (roughCanvas: RoughCanvas, context: CanvasRenderingCo
 };
 
 export const adjustmentRequired = (type: string): boolean => isShapeElementType(type);
-
-export const getElementRect = (element: TypeElement): IRect | null => {
-  if (element.type === 'line') {
-    return {
-      x: element.x1,
-      y: element.y1,
-      width: element.x2 - element.x1,
-      height: element.y2 - element.y1,
-    };
-  }
-  if (element.type === 'rectangle' || element.type === 'triangle' || element.type === 'circle' || element.type === 'ellipse') {
-    return {
-      x: element.x1,
-      y: element.y1,
-      width: element.x2 - element.x1,
-      height: element.y2 - element.y1,
-    };
-  }
-  if (element.type === 'pencil') {
-    const x = Math.min(...element.points.map((p) => p.x));
-    const y = Math.min(...element.points.map((p) => p.y));
-    return {
-      x,
-      y,
-      width: Math.max(...element.points.map((p) => p.x)) - x,
-      height: Math.max(...element.points.map((p) => p.y)) - y,
-    };
-  }
-  if (element.type === 'text') {
-    return {
-      x: element.x1,
-      y: element.y1,
-      width: element.x2 - element.x1,
-      height: element.y2 - element.y1,
-    };
-  }
-
-  return null;
-};
-// export const getElementRectWithStrokeWidthOffset = (element: TypeElement): IRect | null => {
-//   let { strokeWidth } = getElementOptions(element);
-//   if (!strokeWidth) {
-//     strokeWidth = 0;
-//   }
-
-//   if (element.type === 'line') {
-//     const x =  element.x1 - strokeWidth,
-//     const y = element.y1 - strokeWidth,
-//     return {
-//       x,
-//       y
-//       width: element.x2 - x + strokeWidth,
-//       height: element.y2 - y + strokeWidth,
-//     };
-//   }
-//   if (element.type === 'rectangle' || element.type === 'triangle' || element.type === 'circle' || element.type === 'ellipse') {
-//     return {
-//       x: element.x1,
-//       y: element.y1,
-//       width: element.x2 - element.x1,
-//       height: element.y2 - element.y1,
-//     };
-//   }
-//   if (element.type === 'pencil') {
-//     const x = Math.min(...element.points.map((p) => p.x));
-//     const y = Math.min(...element.points.map((p) => p.y));
-//     return {
-//       x,
-//       y,
-//       width: Math.max(...element.points.map((p) => p.x)) - x,
-//       height: Math.max(...element.points.map((p) => p.y)) - y,
-//     };
-//   }
-//   if (element.type === 'text') {
-//     return {
-//       x: element.x1,
-//       y: element.y1,
-//       width: element.x2 - element.x1,
-//       height: element.y2 - element.y1,
-//     };
-//   }
-
-//   return null;
-// };
 
 export const centerOf = (rect: ISize): IPoint => ({
   x: rect.width / 2,

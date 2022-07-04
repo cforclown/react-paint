@@ -1,5 +1,5 @@
 import React, {
-  useEffect, useLayoutEffect, useRef, useState,
+  useEffect, useLayoutEffect, useMemo, useRef, useState,
 } from 'react';
 import { useSelector } from 'react-redux';
 import rough from 'roughjs/bin/rough';
@@ -8,7 +8,6 @@ import {
   drawElement,
   getElementAtPosition,
   resizedCoordinates,
-  cursorForPosition,
   adjustmentRequired,
   adjustElementCoordinates,
   CanvasAction,
@@ -18,15 +17,15 @@ import {
   createElement,
   ElementType,
   TypeElement,
-  PositionType,
   ILineElement,
   IRectangleElement,
   ITextElement,
   isShapeElementType,
   IPoint,
+  getElementRectWithStrokeWidthOffset,
 } from '../../Utils/Element/Element.service';
 import { IState } from '../../Reducer/Reducer';
-import ElementRect from '../ElementRect/ElementRect';
+import ElementRect from '../ElementRect/ElementRect.style';
 
 function getMousePoint(mouseEvent: React.MouseEvent<HTMLCanvasElement>, canvasRect: DOMRect): IPoint {
   const { clientX, clientY } = mouseEvent;
@@ -43,7 +42,7 @@ interface ICanvas {
   undo: () => void;
   redo: () => void;
   currentElement?: TypeElement;
-  setCurrentElement: (element: TypeElement) => void;
+  setCurrentElement: (element?: TypeElement) => void;
   className?: string;
 }
 
@@ -52,14 +51,15 @@ function CanvasBase({
   elements,
   setElements,
   undo, redo,
-  currentElement, setCurrentElement,
+  currentElement,
+  setCurrentElement,
   className,
 }: ICanvas): JSX.Element {
   const {
     tool, toolOptions, canvasSize, color,
   } = useSelector<IState>((state) => state) as IState;
   const [action, setAction] = useState<CanvasAction>('none');
-  const [selectedElement, setSelectedElement] = useState<TypeElement | null>(null);
+  const [selectedElement, setSelectedElement] = useState<TypeElement | undefined>(undefined);
   const [canvasRect, setCanvasRect] = useState<DOMRect>();
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -89,7 +89,7 @@ function CanvasBase({
         }
       }
     });
-  }, [elements, action, selectedElement, canvasSize]);
+  }, [elements, action, selectedElement, currentElement, canvasSize]);
 
   useEffect(() => {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement | null;
@@ -124,8 +124,9 @@ function CanvasBase({
     }
   }, [action, selectedElement]);
 
-  const updateElement = (id: number, type: ElementType, x1: number, y1: number, x2?: number, y2?: number, options?: { text?: string }): void => {
+  const updateElement = (id: number, type: ElementType, x1: number, y1: number, x2: number, y2: number, options?: { text?: string }): void => {
     const elementsCopy = [...elements];
+
     try {
       if (isShapeElementType(type)) {
         if (!x2 || !y2) {
@@ -133,8 +134,8 @@ function CanvasBase({
         }
         elementsCopy[id] = createElement(generator, id, type, x1, y1, x2, y2, elementsCopy[id].color, elementsCopy[id].options ?? {});
       } else if (type === 'pencil') {
-        elementsCopy[id].points = [...elementsCopy[id].points, { x: x2, y: y2 }];
         elementsCopy[id].color = color;
+        elementsCopy[id].points = [...elementsCopy[id].points, { x: x2, y: y2 }];
       } else if (type === 'text') {
         const canvasElement = document.getElementById('canvas') as HTMLCanvasElement | null;
         if (!canvasElement) {
@@ -166,6 +167,9 @@ function CanvasBase({
       }
     }
 
+    // if (currentElement && currentElement.id === id) {
+    //   setCurrentElement(elementsCopy[id]);
+    // }
     setElements(elementsCopy, true);
   };
 
@@ -173,11 +177,14 @@ function CanvasBase({
     if (!canvasRect || tool !== 'selection') {
       return;
     }
+
     const mousePos = getMousePoint(event, canvasRect);
     const element = getElementAtPosition(mousePos, elements);
     if (!element) {
+      setCurrentElement(undefined);
       return;
     }
+
     if (element.type === 'pencil') {
       const xOffsets = element.points.map((point) => mousePos.x - point.x);
       const yOffsets = element.points.map((point) => mousePos.y - point.y);
@@ -195,28 +202,7 @@ function CanvasBase({
     }
 
     const mousePos = getMousePoint(event, canvasRect);
-    if (tool === 'selection') {
-      const element = getElementAtPosition(mousePos, elements);
-      if (!element) {
-        return;
-      }
-      if (element.type === 'pencil') {
-        const xOffsets = element.points.map((point) => mousePos.x - point.x);
-        const yOffsets = element.points.map((point) => mousePos.y - point.y);
-        setSelectedElement({ ...element, xOffsets, yOffsets });
-      } else {
-        const offsetX = mousePos.x - element.x1;
-        const offsetY = mousePos.y - element.y1;
-        setSelectedElement({ ...element, offsetX, offsetY });
-      }
-      setElements((prevState: any) => prevState);
-
-      if (element.position === 'inside') {
-        setAction('moving');
-      } else {
-        setAction('resizing');
-      }
-    } else if (isElementType(tool)) {
+    if (isElementType(tool)) {
       const id = elements.length;
       const element = createElement(generator, id, tool as ElementType, mousePos.x, mousePos.y, mousePos.x, mousePos.y, color, toolOptions[tool]);
       if (!element) {
@@ -224,7 +210,6 @@ function CanvasBase({
       }
       setElements((prevState: any) => [...prevState, element]);
       setSelectedElement(element);
-      setCurrentElement(element);
       setAction(tool === 'text' ? 'writing' : 'drawing');
     }
   };
@@ -238,7 +223,8 @@ function CanvasBase({
     if (tool === 'selection') {
       const element = getElementAtPosition(mousePos, elements);
       // eslint-disable-next-line no-param-reassign
-      event.currentTarget.style.cursor = element ? cursorForPosition(element.position as PositionType) : 'default';
+      event.currentTarget.style.cursor = element ? 'pointer' : 'default';
+      return;
     }
 
     if (action === 'drawing') {
@@ -290,7 +276,7 @@ function CanvasBase({
   };
 
   const handleMouseUp = (event: React.MouseEvent<HTMLCanvasElement>): void => {
-    if (!canvasRect) {
+    if (!canvasRect || tool === 'selection') {
       return;
     }
 
@@ -313,9 +299,6 @@ function CanvasBase({
         } = adjustElementCoordinates(elements[index]);
         updateElement(id, type, x1, y1, x2, y2);
       }
-      if (tool === 'selection') {
-        setCurrentElement(selectedElement);
-      }
     }
 
     if (action === 'writing') {
@@ -323,7 +306,7 @@ function CanvasBase({
     }
 
     setAction('none');
-    setSelectedElement(null);
+    setSelectedElement(undefined);
   };
 
   const handleBlur = (event: React.FocusEvent<HTMLTextAreaElement>): void => {
@@ -332,11 +315,16 @@ function CanvasBase({
     }
 
     const {
-      id, type, x1, y1,
+      id, type, x1, y1, x2, y2,
     } = selectedElement as ILineElement | IRectangleElement | ITextElement;
     setAction('none');
-    setSelectedElement(null);
-    updateElement(id, type, x1, y1, undefined, undefined, { text: event.target.value });
+    setSelectedElement(undefined);
+    updateElement(id, type, x1, y1, x2, y2, { text: event.target.value });
+  };
+
+  const handleEditElement = (element: TypeElement, params?: Record<string, any>): void => {
+    updateElement(element.id, element.type, element.x1, element.y1, element.x2, element.y2, params);
+    setCurrentElement(element);
   };
 
   const textArea = (action === 'writing' && selectedElement && selectedElement.type !== 'pencil') && (
@@ -361,15 +349,15 @@ function CanvasBase({
     />
   );
 
-  // const currentElementRect = currentElement && canvasRect && (
-  //   <ElementRect
-  //     element={currentElement}
-  //     canvasOffset={{ x: canvasRect.left, y: canvasRect.top }}
-  //     onCanvasMouseDown={handleMouseDown}
-  //     onCanvasMouseMove={handleMouseMove}
-  //     onCanvasMouseUp={handleMouseUp}
-  //   />
-  // );
+  const currentElementRect = useMemo(() => currentElement && canvasRect && (
+    <ElementRect
+      element={currentElement}
+      elementRect={getElementRectWithStrokeWidthOffset(currentElement)}
+      setElement={setCurrentElement}
+      onEdit={handleEditElement}
+      canvasOffset={{ x: canvasRect.left, y: canvasRect.top }}
+    />
+  ), [currentElement]);
 
   return (
     <div className={className}>
@@ -386,7 +374,7 @@ function CanvasBase({
         >
           Canvas
         </canvas>
-        {/* {currentElementRect} */}
+        {currentElementRect}
       </div>
     </div>
   );

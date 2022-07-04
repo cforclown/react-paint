@@ -120,7 +120,16 @@ function SidebarBase({ insertImage, className }: ISidebar): JSX.Element {
           <Tooltip overlay={<TooltipContainer>Color picker</TooltipContainer>}>
             <MenuItem
               onClick={handleColorClick}
-              icon={<div style={{ width: '100%', height: '100%', backgroundColor: color }} />}
+              icon={(
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: color,
+                    boxShadow: '0 0 6px white',
+                  }}
+                />
+              )}
               popperarrow
             >
               Color picker

@@ -73,7 +73,7 @@ const defaultState: IState = {
     },
     image: {},
   },
-  color: '#FF0000',
+  color: '#000000',
   showColorModal: false,
 };
 
