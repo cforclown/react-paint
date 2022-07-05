@@ -59,7 +59,7 @@ function CanvasBase({
     tool, toolOptions, canvasSize, color,
   } = useSelector<IState>((state) => state) as IState;
   const [action, setAction] = useState<CanvasAction>('none');
-  const [selectedElement, setSelectedElement] = useState<TypeElement | undefined>(undefined);
+  const [tempElement, setTempElement] = useState<TypeElement | undefined>(undefined);
   const [canvasRect, setCanvasRect] = useState<DOMRect>();
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -78,7 +78,7 @@ function CanvasBase({
 
     elements.forEach((element) => {
       try {
-        if (action === 'writing' && selectedElement && selectedElement.id === element.id) {
+        if (action === 'writing' && tempElement && tempElement.id === element.id) {
           return;
         }
         drawElement(roughCanvas, context, element);
@@ -89,7 +89,7 @@ function CanvasBase({
         }
       }
     });
-  }, [elements, action, selectedElement, currentElement, canvasSize]);
+  }, [elements, action, tempElement, currentElement, canvasSize]);
 
   useEffect(() => {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement | null;
@@ -118,11 +118,20 @@ function CanvasBase({
 
   useEffect(() => {
     const textArea = textAreaRef.current;
-    if (action === 'writing' && textArea && selectedElement && selectedElement.type === 'text') {
+    if (action === 'writing' && textArea && tempElement && tempElement.type === 'text') {
       textArea.focus();
-      textArea.value = selectedElement.text;
+      textArea.value = tempElement.text;
     }
-  }, [action, selectedElement]);
+  }, [action, tempElement]);
+
+  const [textareaBlurTimeout, setTextareBlurTimeout] = useState<boolean>(false);
+  useEffect(() => {
+    if (textareaBlurTimeout) {
+      setTimeout(() => {
+        setTextareBlurTimeout(false);
+      }, 500);
+    }
+  }, [textareaBlurTimeout]);
 
   const updateElement = (id: number, type: ElementType, x1: number, y1: number, x2: number, y2: number, options?: { text?: string }): void => {
     const elementsCopy = [...elements];
@@ -167,10 +176,10 @@ function CanvasBase({
       }
     }
 
-    // if (currentElement && currentElement.id === id) {
-    //   setCurrentElement(elementsCopy[id]);
-    // }
     setElements(elementsCopy, true);
+    if (tempElement && tempElement.id === id) {
+      setTempElement({ ...elementsCopy[id] });
+    }
   };
 
   const handleLeftClick = (event: React.MouseEvent<HTMLCanvasElement>): void => {
@@ -209,8 +218,12 @@ function CanvasBase({
         return;
       }
       setElements((prevState: any) => [...prevState, element]);
-      setSelectedElement(element);
       setAction(tool === 'text' ? 'writing' : 'drawing');
+      if (tool === 'text' && !textareaBlurTimeout) {
+        event.preventDefault();
+        setTextareBlurTimeout(true);
+      }
+      setTempElement(element);
     }
   };
 
@@ -232,42 +245,42 @@ function CanvasBase({
       const { x1, y1 } = elements[index];
       updateElement(index, tool as ElementType, x1, y1, mousePos.x, mousePos.y);
     } else if (action === 'moving') {
-      if (!selectedElement) {
+      if (!tempElement) {
         return;
       }
 
-      if (selectedElement.type === 'pencil') {
-        const newPoints = selectedElement.points.map((_, index) => ({
-          x: mousePos.x - selectedElement.xOffsets[index],
-          y: mousePos.y - selectedElement.yOffsets[index],
+      if (tempElement.type === 'pencil') {
+        const newPoints = tempElement.points.map((_, index) => ({
+          x: mousePos.x - tempElement.xOffsets[index],
+          y: mousePos.y - tempElement.yOffsets[index],
         }));
         const elementsCopy = [...elements];
-        elementsCopy[selectedElement.id] = {
-          ...elementsCopy[selectedElement.id],
+        elementsCopy[tempElement.id] = {
+          ...elementsCopy[tempElement.id],
           points: newPoints,
         };
         setElements(elementsCopy, true);
       } else {
         const {
           id, x1, x2, y1, y2, type, offsetX, offsetY,
-        } = selectedElement;
+        } = tempElement;
         const width = x2 - x1;
         const height = y2 - y1;
         const newX1 = mousePos.x - offsetX;
         const newY1 = mousePos.y - offsetY;
-        const options = type === 'text' ? { text: selectedElement.text } : {};
+        const options = type === 'text' ? { text: tempElement.text } : {};
         updateElement(id, type, newX1, newY1, newX1 + width, newY1 + height, options);
       }
     } else if (action === 'resizing') {
-      if (!selectedElement) {
+      if (!tempElement) {
         return;
       }
-      if (selectedElement.type === 'pencil') {
+      if (tempElement.type === 'pencil') {
         return;
       }
       const {
         id, type, position, ...coordinates
-      } = selectedElement;
+      } = tempElement;
       const newCoordinates = resizedCoordinates(mousePos.x, mousePos.y, coordinates, position);
       if (newCoordinates) {
         updateElement(id, type, newCoordinates.x1, newCoordinates.y1, newCoordinates.x2, newCoordinates.y2);
@@ -279,19 +292,18 @@ function CanvasBase({
     if (!canvasRect || tool === 'selection') {
       return;
     }
-
     const mousePos = getMousePoint(event, canvasRect);
-    if (selectedElement) {
+    if (tempElement) {
       if (
-        selectedElement.type === 'text'
-        && mousePos.x - selectedElement.offsetX === selectedElement.x1
-        && mousePos.y - selectedElement.offsetY === selectedElement.y1
+        tempElement.type === 'text'
+        && mousePos.x - tempElement.offsetX === tempElement.x1
+        && mousePos.y - tempElement.offsetY === tempElement.y1
       ) {
         setAction('writing');
         return;
       }
 
-      const index = selectedElement.id;
+      const index = tempElement.id;
       const { id, type } = elements[index];
       if ((action === 'drawing' || action === 'resizing') && adjustmentRequired(type)) {
         const {
@@ -306,20 +318,31 @@ function CanvasBase({
     }
 
     setAction('none');
-    setSelectedElement(undefined);
+    if (
+      tempElement
+      && isShapeElementType(tempElement.type)
+      && (tempElement.x1 === tempElement.x2 && tempElement.y1 === tempElement.y2)
+    ) {
+      setElements([...elements].filter((e) => e.id !== tempElement.id));
+    }
+    setTempElement(undefined);
   };
 
   const handleBlur = (event: React.FocusEvent<HTMLTextAreaElement>): void => {
-    if (!selectedElement) {
+    if (!tempElement) {
       return;
     }
 
     const {
       id, type, x1, y1, x2, y2,
-    } = selectedElement as ILineElement | IRectangleElement | ITextElement;
+    } = tempElement as ILineElement | IRectangleElement | ITextElement;
     setAction('none');
-    setSelectedElement(undefined);
-    updateElement(id, type, x1, y1, x2, y2, { text: event.target.value });
+    if (event.target.value !== '') {
+      updateElement(id, type, x1, y1, x2, y2, { text: event.target.value });
+    } else {
+      setElements([...elements].filter((e) => e.id !== tempElement.id));
+    }
+    setTempElement(undefined);
   };
 
   const handleEditElement = (element: TypeElement, params?: Record<string, any>): void => {
@@ -327,24 +350,16 @@ function CanvasBase({
     setCurrentElement(element);
   };
 
-  const textArea = (action === 'writing' && selectedElement && selectedElement.type !== 'pencil') && (
+  const textArea = (action === 'writing' && tempElement && tempElement.type !== 'pencil') && (
     <textarea
       className="text-area"
       ref={textAreaRef}
       onBlur={handleBlur}
       style={{
         position: 'fixed',
-        top: selectedElement.y1 - 2,
-        left: selectedElement.x1,
+        left: tempElement.x1 + (canvasRect ? canvasRect.left : 0) - 4,
+        top: tempElement.y1 + (canvasRect ? canvasRect.top : 0) - 4,
         font: '24px sans-serif',
-        margin: 0,
-        padding: 0,
-        outline: 0,
-        // resize: 'auto',
-        resize: 'both',
-        overflow: 'hidden',
-        whiteSpace: 'pre',
-        background: 'transparent',
       }}
     />
   );

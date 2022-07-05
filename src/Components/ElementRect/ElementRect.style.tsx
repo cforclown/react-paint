@@ -4,7 +4,7 @@ import ElementRectBase, { IElementRectProps } from './ElementRect';
 const ElementRect = styled(ElementRectBase)<IElementRectProps>`
   position: absolute;
   border: 1px solid #8d979b80;
-  cursor: move;
+  /* cursor: move; */
 
   .controller {
     position: absolute;
@@ -40,7 +40,7 @@ const ElementRect = styled(ElementRectBase)<IElementRectProps>`
   .center-center {
     left: ${(props) => props.elementRect.width / 2 - 6}px;
     top: ${(props) => props.elementRect.height / 2 - 6}px;
-    /* cursor: move; */
+    cursor: move;
   }
 
   .center-right {

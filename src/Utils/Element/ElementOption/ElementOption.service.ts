@@ -1,5 +1,5 @@
 import { IFormField } from '../../Form/Form';
-import { ElementType, TypeElement } from '../Element.service';
+import { ElementType } from '../Element.service';
 
 export type IFillStyle = 'hachure' | 'solid' | 'zigzag' | 'cross-hatch' | 'dots' | 'sunburst' | 'dashed' | 'zigzag-line'
 
@@ -29,7 +29,9 @@ export interface IImageOptions extends IBasicOptions {}
 export interface ITextOptions {
   fontSize: number;
   fontWeight: 'normal' | 'bold';
+  lineHeight: number;
   fontStyle?: 'italic' | 'underline';
+  align?: 'start' | 'center' | 'end'
 }
 
 export type ToolOptions = ILineOptions | IRectangleOptions | IPencilOptions | ITextOptions
@@ -153,12 +155,4 @@ export const ElementOptionConfigs: ElementOptions = {
     optionFillStyleField,
   ],
   image: undefined,
-};
-
-export const getElementOptions = (element: TypeElement): Record<string, any> => {
-  if (!element.options) {
-    return {};
-  }
-
-  return element.options;
 };

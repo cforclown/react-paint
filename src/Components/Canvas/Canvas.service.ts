@@ -1,7 +1,7 @@
 import getStroke from 'perfect-freehand';
 import { RoughCanvas } from 'roughjs/bin/canvas';
 import {
-  IElementCoordinate, IPoint, PositionType, TypeElement, isShapeElementType, ISize,
+  IElementCoordinate, IPoint, TypeElement, isShapeElementType, ISize,
 } from '../../Utils/Element/Element.service';
 
 const SelectionToolActions = ['none', 'moving', 'resizing'] as const;
@@ -176,7 +176,9 @@ export const drawElement = (roughCanvas: RoughCanvas, context: CanvasRenderingCo
     case 'text':
       context.textBaseline = 'top';
       context.font = '24px sans-serif';
-      context.fillText(element.text, element.x1, element.y1);
+      element.text.split('\n').forEach((text, index) => {
+        context.fillText(text, element.x1, element.y1 + ((element.options.lineHeight ?? 24) * index));
+      });
       break;
     case 'image':
       // eslint-disable-next-line no-case-declarations

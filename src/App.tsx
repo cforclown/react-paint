@@ -56,14 +56,8 @@ function App({ className }: { className?: string}): JSX.Element {
 
   const handleDeleteElement = (element: TypeElement): void => {
     // remove element and adjust the id (index)
-    const currentElements = elements.reduce((acc, curr, index) => {
-      if (curr.id === element.id) {
-        return acc;
-      }
-      const e = { ...curr, id: index };
-      acc.push(e);
-      return acc;
-    }, []);
+    const currentElements = elements.filter((e) => e.id !== element.id);
+    currentElements.forEach((e, i) => { e.id = i; });
     setElements(currentElements);
     if (currentElement && currentElement.id === element.id) {
       setCurrentElement(undefined);

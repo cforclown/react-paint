@@ -1,7 +1,6 @@
 import { Drawable } from 'roughjs/bin/core';
 import { RoughGenerator } from 'roughjs/bin/generator';
 import { Point } from 'roughjs/bin/geometry';
-import { getElementOptions, ToolOptions } from './ElementOption/ElementOption.service';
 
 const ShapeElementTypes = ['line', 'rectangle', 'triangle', 'circle', 'ellipse'] as const;
 export type ShapeElementType = (typeof ShapeElementTypes)[number];
@@ -25,7 +24,7 @@ export interface IElement {
   x2: number;
   y2: number;
   color: string;
-  options?: Record<string, any>;
+  options: Record<string, any>;
   position?: string | null;
 }
 
@@ -258,6 +257,7 @@ export function createImage(
   x2: number,
   y2: number,
   image: string | ArrayBuffer,
+  options: Record<string, any>,
 ): IImageElement {
   return {
     id,
@@ -270,6 +270,7 @@ export function createImage(
     offsetX: 0,
     offsetY: 0,
     color: 'none',
+    options,
   };
 }
 
@@ -312,6 +313,7 @@ export const createElement = (
       xOffsets: [],
       yOffsets: [],
       color,
+      options,
     };
   }
   if (type === 'text') {
@@ -326,6 +328,7 @@ export const createElement = (
       offsetY: 0,
       text: '',
       color,
+      options,
     };
   }
   if (type === 'image' && image) {
@@ -340,6 +343,7 @@ export const createElement = (
       offsetX: 0,
       offsetY: 0,
       color,
+      options,
     };
   }
 
@@ -385,7 +389,7 @@ export const getElementRect = (element: TypeElement): IRect | null => {
   return null;
 };
 export const getElementRectWithStrokeWidthOffset = (element: TypeElement): IRect => {
-  let { strokeWidth } = getElementOptions(element);
+  let { strokeWidth } = element.options;
   if (!strokeWidth) {
     strokeWidth = 0;
   }

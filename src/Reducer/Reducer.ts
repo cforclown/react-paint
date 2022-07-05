@@ -70,6 +70,8 @@ const defaultState: IState = {
     text: {
       fontSize: 20,
       fontWeight: 'normal',
+      lineHeight: 24,
+      align: 'start',
     },
     image: {},
   },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   IImageElement, IPencilElement, IPoint, IRect, IShapeElement, ITextElement, TypeElement,
 } from '../../Utils/Element/Element.service';
@@ -36,6 +36,7 @@ function ElementRectBase({
   canvasOffset,
   className,
 }: IElementRectProps): JSX.Element {
+  const rectRef = useRef<HTMLDivElement>(null);
   const [action, setAction] = useState<SelectionToolAction>('none');
   const [resizeAction, _setResizeAction] = useState<ResizeAction>('none');
   const setResizeAction = (resize: ResizeAction): void => {
@@ -80,11 +81,14 @@ function ElementRectBase({
   };
 
   const handleMouseMove = (mouseEvent: MouseEvent): void => {
+    const mousePos = getMousePos(mouseEvent, canvasOffset);
+    if (rectRef && rectRef.current) {
+      rectRef.current.style.cursor = getElementAtPosition(mousePos, [element]) ? 'move' : 'default';
+    }
+
     if (action === 'none') {
       return;
     }
-
-    const mousePos = getMousePos(mouseEvent, canvasOffset);
 
     const currentElement = { ...element };
     if (action === 'moving') {
@@ -158,6 +162,7 @@ function ElementRectBase({
 
   return (
     <div
+      ref={rectRef}
       className={className}
       style={{
         left: elementRect.x + canvasOffset.x,

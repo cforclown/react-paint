@@ -18,6 +18,16 @@ const Canvas = styled(CanvasBase)`
 
   .text-area {
     border: 1px solid #b2bec3;
+    min-width: 8px;
+    min-height: 8px;
+    margin: 0;
+    padding: 0;
+    outline: 0;
+    // resize: 'auto',
+    resize: both;
+    overflow: hidden;
+    white-space: pre;
+    background: transparent;
   }
 `;
 
