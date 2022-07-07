@@ -28,6 +28,7 @@ export interface IImageOptions extends IBasicOptions {}
 
 export interface ITextOptions {
   fontSize: number;
+  fontFamily: string;
   fontWeight: 'normal' | 'bold';
   lineHeight: number;
   fontStyle?: 'italic' | 'underline';

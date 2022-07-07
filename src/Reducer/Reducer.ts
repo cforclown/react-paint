@@ -33,7 +33,7 @@ const defaultState: IState = {
     width: 800,
     height: 600,
   },
-  tool: 'rectangle',
+  tool: 'line',
   toolOptions: {
     line: {
       bowing: 0,
@@ -68,7 +68,8 @@ const defaultState: IState = {
       strokeWidth: 4,
     },
     text: {
-      fontSize: 20,
+      fontSize: 24,
+      fontFamily: 'sans-serif',
       fontWeight: 'normal',
       lineHeight: 24,
       align: 'start',

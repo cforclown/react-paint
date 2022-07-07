@@ -4,13 +4,14 @@ import { FaRedo, FaUndo } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
 import { ChangeCanvasSize } from '../../Reducer/Actions';
 import { IState } from '../../Reducer/Reducer';
-import { ElementType, isElementType, TypeElement } from '../../Utils/Element/Element.service';
+import Element from '../../Utils/Element/Element';
+import { ElementType, isElementType } from '../../Utils/Element/Element.service';
 import { ElementOptionConfigs } from '../../Utils/Element/ElementOption/ElementOption.service';
 
 interface IHeader {
   undo: () => void;
   redo: () => void;
-  selectedElement?: TypeElement | null;
+  selectedElement?: Element | null;
   className?: string;
 }
 

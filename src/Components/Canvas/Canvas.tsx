@@ -2,30 +2,26 @@ import React, {
   useEffect, useLayoutEffect, useMemo, useRef, useState,
 } from 'react';
 import { useSelector } from 'react-redux';
-import rough from 'roughjs/bin/rough';
 import { RoughGenerator } from 'roughjs/bin/generator';
+import rough from 'roughjs/bin/rough';
+import styled from 'styled-components';
 import {
-  drawElement,
-  getElementAtPosition,
-  resizedCoordinates,
-  adjustmentRequired,
-  adjustElementCoordinates,
   CanvasAction,
 } from './Canvas.service';
 import {
   isElementType,
-  createElement,
-  ElementType,
-  TypeElement,
-  ILineElement,
-  IRectangleElement,
-  ITextElement,
   isShapeElementType,
-  IPoint,
-  getElementRectWithStrokeWidthOffset,
+  generateElement,
+  generateElementId,
+  generateElementName,
 } from '../../Utils/Element/Element.service';
 import { IState } from '../../Reducer/Reducer';
 import ElementRect from '../ElementRect/ElementRect.style';
+import Element, { IUpdateElementParams } from '../../Utils/Element/Element';
+import TextElement from '../../Utils/Element/Text/Text';
+import { IPoint, TraceError } from '../../Utils/Common';
+
+import Pencil from '../../Utils/Element/Pencil/Pencil';
 
 function getMousePoint(mouseEvent: React.MouseEvent<HTMLCanvasElement>, canvasRect: DOMRect): IPoint {
   const { clientX, clientY } = mouseEvent;
@@ -35,61 +31,63 @@ function getMousePoint(mouseEvent: React.MouseEvent<HTMLCanvasElement>, canvasRe
   };
 }
 
+const TextArea = styled.textarea<{fontSize: number; fontFamily: string;}>`
+  font: ${(props) => props.fontSize}px ${(props) => props.fontFamily};
+`;
+
 interface ICanvas {
-  roughGeneratopr: RoughGenerator,
-  elements: any[];
+  roughGenerator: RoughGenerator,
+  elements: Element[];
   setElements: (state: any, overwrite?: boolean | undefined) => void;
   undo: () => void;
   redo: () => void;
-  currentElement?: TypeElement;
-  setCurrentElement: (element?: TypeElement) => void;
+  selectedElement?: Element;
+  setSelectedElement: (element?: Element) => void;
   className?: string;
 }
 
 function CanvasBase({
-  roughGeneratopr: generator,
+  roughGenerator,
   elements,
   setElements,
   undo, redo,
-  currentElement,
-  setCurrentElement,
+  selectedElement,
+  setSelectedElement,
   className,
 }: ICanvas): JSX.Element {
   const {
     tool, toolOptions, canvasSize, color,
   } = useSelector<IState>((state) => state) as IState;
   const [action, setAction] = useState<CanvasAction>('none');
-  const [tempElement, setTempElement] = useState<TypeElement | undefined>(undefined);
+  const [tempElement, setTempElement] = useState<Element | undefined>(undefined);
   const [canvasRect, setCanvasRect] = useState<DOMRect>();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
-    const canvas = document.getElementById('canvas') as HTMLCanvasElement | null;
-    if (!canvas) {
+    if (!canvasRef.current) {
       return;
     }
-    const context = canvas?.getContext('2d');
+    const context = canvasRef.current?.getContext('2d');
     if (!context) {
       return;
     }
-    context.clearRect(0, 0, canvas.width, canvas.height);
-
-    const roughCanvas = rough.canvas(canvas);
+    context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    const roughCanvas = rough.canvas(canvasRef.current);
 
     elements.forEach((element) => {
       try {
         if (action === 'writing' && tempElement && tempElement.id === element.id) {
           return;
         }
-        drawElement(roughCanvas, context, element);
+        element.draw(roughCanvas, context);
       } catch (err) {
         if (err instanceof Error) {
-          // eslint-disable-next-line no-console
           console.error(err.message);
         }
       }
     });
-  }, [elements, action, tempElement, currentElement, canvasSize]);
+  }, [elements, action, tempElement, selectedElement, canvasSize]);
 
   useEffect(() => {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement | null;
@@ -120,7 +118,7 @@ function CanvasBase({
     const textArea = textAreaRef.current;
     if (action === 'writing' && textArea && tempElement && tempElement.type === 'text') {
       textArea.focus();
-      textArea.value = tempElement.text;
+      textArea.value = (tempElement as TextElement).text;
     }
   }, [action, tempElement]);
 
@@ -133,52 +131,16 @@ function CanvasBase({
     }
   }, [textareaBlurTimeout]);
 
-  const updateElement = (id: number, type: ElementType, x1: number, y1: number, x2: number, y2: number, options?: { text?: string }): void => {
+  const updateElement = (params: IUpdateElementParams): void => {
     const elementsCopy = [...elements];
-
-    try {
-      if (isShapeElementType(type)) {
-        if (!x2 || !y2) {
-          throw new Error('updateElement: x2 and y2 is undefined');
-        }
-        elementsCopy[id] = createElement(generator, id, type, x1, y1, x2, y2, elementsCopy[id].color, elementsCopy[id].options ?? {});
-      } else if (type === 'pencil') {
-        elementsCopy[id].color = color;
-        elementsCopy[id].points = [...elementsCopy[id].points, { x: x2, y: y2 }];
-      } else if (type === 'text') {
-        const canvasElement = document.getElementById('canvas') as HTMLCanvasElement | null;
-        if (!canvasElement) {
-          throw new Error('UPDATE ELEMENT: canvas element not found');
-        }
-        const canvasContext = canvasElement.getContext('2d');
-        if (!canvasContext) {
-          throw new Error('UPDATE ELEMENT: canvas context not found');
-        }
-        const text = options && options.text ? options.text : '';
-        const textWidth = canvasContext.measureText(text).width;
-        const textHeight = 24;
-        elementsCopy[id] = {
-          ...createElement(generator, id, type, x1, y1, x1 + textWidth, y1 + textHeight, elementsCopy[id].color, toolOptions[type]),
-          text,
-        };
-      } else if (type === 'image') {
-        if (!x2 || !y2) {
-          throw new Error('UPDATE_ELEMENT: type: image ERROR: x2 and y2 is undefined');
-        }
-        elementsCopy[id] = createElement(generator, id, type, x1, y1, x2, y2, elementsCopy[id].color, elementsCopy[id].options ?? {}, elementsCopy[id].image);
-      } else {
-        throw new Error(`Type not recognised: ${type}`);
-      }
-    } catch (err) {
-      if (err instanceof Error) {
-        // eslint-disable-next-line no-console
-        console.error('UPDATE ELEMENT:', err.message);
-      }
+    const currentElement = elementsCopy.find((e) => e.id === params.id);
+    if (!currentElement) {
+      return;
     }
-
+    currentElement.update(params);
     setElements(elementsCopy, true);
-    if (tempElement && tempElement.id === id) {
-      setTempElement({ ...elementsCopy[id] });
+    if (tempElement && tempElement.id === params.id) {
+      setTempElement(currentElement);
     }
   };
 
@@ -188,42 +150,48 @@ function CanvasBase({
     }
 
     const mousePos = getMousePoint(event, canvasRect);
-    const element = getElementAtPosition(mousePos, elements);
+    const element = elements.reverse().find((e) => e.isHover(mousePos));
     if (!element) {
-      setCurrentElement(undefined);
+      setSelectedElement(undefined);
       return;
     }
-
-    if (element.type === 'pencil') {
-      const xOffsets = element.points.map((point) => mousePos.x - point.x);
-      const yOffsets = element.points.map((point) => mousePos.y - point.y);
-      setCurrentElement({ ...element, xOffsets, yOffsets });
-    } else {
-      const offsetX = mousePos.x - element.x1;
-      const offsetY = mousePos.y - element.y1;
-      setCurrentElement({ ...element, offsetX, offsetY });
-    }
+    setSelectedElement(element);
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>): void => {
-    if (!canvasRect || action === 'writing') {
+    if (!canvasRef.current || !canvasRect || action === 'writing') {
       return;
     }
 
-    const mousePos = getMousePoint(event, canvasRect);
-    if (isElementType(tool)) {
-      const id = elements.length;
-      const element = createElement(generator, id, tool as ElementType, mousePos.x, mousePos.y, mousePos.x, mousePos.y, color, toolOptions[tool]);
-      if (!element) {
-        return;
+    try {
+      const mousePos = getMousePoint(event, canvasRect);
+      if (isElementType(tool)) {
+        const element = generateElement({
+          id: generateElementId(),
+          name: generateElementName(elements, tool),
+          type: tool,
+          roughGenerator,
+          rect: {
+            x: mousePos.x,
+            y: mousePos.y,
+            width: 0,
+            height: 0,
+          },
+          color,
+          options: toolOptions[tool],
+        });
+        setElements((prevState: any) => [...prevState, element]);
+        setAction(tool === 'text' ? 'writing' : 'drawing');
+        if (tool === 'text' && !textareaBlurTimeout) {
+          event.preventDefault();
+          setTextareBlurTimeout(true);
+        }
+        setTempElement(element);
       }
-      setElements((prevState: any) => [...prevState, element]);
-      setAction(tool === 'text' ? 'writing' : 'drawing');
-      if (tool === 'text' && !textareaBlurTimeout) {
-        event.preventDefault();
-        setTextareBlurTimeout(true);
+    } catch (err) {
+      if (err instanceof Error) {
+        TraceError(err);
       }
-      setTempElement(element);
     }
   };
 
@@ -234,56 +202,38 @@ function CanvasBase({
 
     const mousePos = getMousePoint(event, canvasRect);
     if (tool === 'selection') {
-      const element = getElementAtPosition(mousePos, elements);
+      const element = elements.find((e) => e.isHover(mousePos));
       // eslint-disable-next-line no-param-reassign
       event.currentTarget.style.cursor = element ? 'pointer' : 'default';
       return;
     }
 
-    if (action === 'drawing') {
-      const index = elements.length - 1;
-      const { x1, y1 } = elements[index];
-      updateElement(index, tool as ElementType, x1, y1, mousePos.x, mousePos.y);
-    } else if (action === 'moving') {
-      if (!tempElement) {
-        return;
-      }
+    if (!tempElement) {
+      return;
+    }
 
+    if (action !== 'drawing') {
+      return;
+    }
+
+    try {
       if (tempElement.type === 'pencil') {
-        const newPoints = tempElement.points.map((_, index) => ({
-          x: mousePos.x - tempElement.xOffsets[index],
-          y: mousePos.y - tempElement.yOffsets[index],
-        }));
-        const elementsCopy = [...elements];
-        elementsCopy[tempElement.id] = {
-          ...elementsCopy[tempElement.id],
-          points: newPoints,
-        };
-        setElements(elementsCopy, true);
-      } else {
-        const {
-          id, x1, x2, y1, y2, type, offsetX, offsetY,
-        } = tempElement;
-        const width = x2 - x1;
-        const height = y2 - y1;
-        const newX1 = mousePos.x - offsetX;
-        const newY1 = mousePos.y - offsetY;
-        const options = type === 'text' ? { text: tempElement.text } : {};
-        updateElement(id, type, newX1, newY1, newX1 + width, newY1 + height, options);
+        (tempElement as Pencil).points.push({
+          x: mousePos.x,
+          y: mousePos.y,
+        });
       }
-    } else if (action === 'resizing') {
-      if (!tempElement) {
-        return;
-      }
-      if (tempElement.type === 'pencil') {
-        return;
-      }
-      const {
-        id, type, position, ...coordinates
-      } = tempElement;
-      const newCoordinates = resizedCoordinates(mousePos.x, mousePos.y, coordinates, position);
-      if (newCoordinates) {
-        updateElement(id, type, newCoordinates.x1, newCoordinates.y1, newCoordinates.x2, newCoordinates.y2);
+      updateElement({
+        ...tempElement,
+        rect: {
+          ...tempElement.rect,
+          width: mousePos.x - tempElement.rect.x,
+          height: mousePos.y - tempElement.rect.y,
+        },
+      });
+    } catch (err) {
+      if (err instanceof Error) {
+        console.error(err.message);
       }
     }
   };
@@ -292,25 +242,19 @@ function CanvasBase({
     if (!canvasRect || tool === 'selection') {
       return;
     }
-    const mousePos = getMousePoint(event, canvasRect);
+    // const mousePos = getMousePoint(event, canvasRect);
     if (tempElement) {
       if (
         tempElement.type === 'text'
-        && mousePos.x - tempElement.offsetX === tempElement.x1
-        && mousePos.y - tempElement.offsetY === tempElement.y1
+        // && mousePos.x - tempElement.offset.x === tempElement.rect.x
+        // && mousePos.y - tempElement.offset.y === tempElement.rect.y
       ) {
         setAction('writing');
         return;
       }
 
-      const index = tempElement.id;
-      const { id, type } = elements[index];
-      if ((action === 'drawing' || action === 'resizing') && adjustmentRequired(type)) {
-        const {
-          x1, y1, x2, y2,
-        } = adjustElementCoordinates(elements[index]);
-        updateElement(id, type, x1, y1, x2, y2);
-      }
+      tempElement.adjustRect();
+      updateElement(tempElement);
     }
 
     if (action === 'writing') {
@@ -321,7 +265,7 @@ function CanvasBase({
     if (
       tempElement
       && isShapeElementType(tempElement.type)
-      && (tempElement.x1 === tempElement.x2 && tempElement.y1 === tempElement.y2)
+      && (tempElement.rect.width === 0 && tempElement.rect.height === 0)
     ) {
       setElements([...elements].filter((e) => e.id !== tempElement.id));
     }
@@ -333,52 +277,54 @@ function CanvasBase({
       return;
     }
 
-    const {
-      id, type, x1, y1, x2, y2,
-    } = tempElement as ILineElement | IRectangleElement | ITextElement;
     setAction('none');
     if (event.target.value !== '') {
-      updateElement(id, type, x1, y1, x2, y2, { text: event.target.value });
+      updateElement({
+        ...tempElement,
+        text: event.target.value,
+      });
     } else {
       setElements([...elements].filter((e) => e.id !== tempElement.id));
     }
     setTempElement(undefined);
   };
 
-  const handleEditElement = (element: TypeElement, params?: Record<string, any>): void => {
-    updateElement(element.id, element.type, element.x1, element.y1, element.x2, element.y2, params);
-    setCurrentElement(element);
+  const handleEditElement = (params: Element): void => {
+    updateElement(params);
+    setSelectedElement(params);
   };
 
-  const textArea = (action === 'writing' && tempElement && tempElement.type !== 'pencil') && (
-    <textarea
+  const textArea = (tool === 'text' && action === 'writing' && tempElement && tempElement.type !== 'pencil') && (
+    <TextArea
       className="text-area"
       ref={textAreaRef}
       onBlur={handleBlur}
       style={{
         position: 'fixed',
-        left: tempElement.x1 + (canvasRect ? canvasRect.left : 0) - 4,
-        top: tempElement.y1 + (canvasRect ? canvasRect.top : 0) - 4,
-        font: '24px sans-serif',
+        left: tempElement.rect.x + (canvasRect ? canvasRect.left : 0) - 4,
+        top: tempElement.rect.y + (canvasRect ? canvasRect.top : 0) - 4,
       }}
+      fontSize={toolOptions[tool].fontSize}
+      fontFamily={toolOptions[tool].fontFamily}
     />
   );
 
-  const currentElementRect = useMemo(() => currentElement && canvasRect && (
+  const currentElementRect = useMemo(() => selectedElement && canvasRect && (
     <ElementRect
-      element={currentElement}
-      elementRect={getElementRectWithStrokeWidthOffset(currentElement)}
-      setElement={setCurrentElement}
+      element={selectedElement}
+      elementRect={selectedElement.rect}
+      setElement={setSelectedElement}
       onEdit={handleEditElement}
       canvasOffset={{ x: canvasRect.left, y: canvasRect.top }}
     />
-  ), [currentElement]);
+  ), [selectedElement]);
 
   return (
     <div className={className}>
       <div className="canvas-container" id="canvas-container">
         {textArea}
         <canvas
+          ref={canvasRef}
           id="canvas"
           width={canvasSize.width}
           height={canvasSize.height}

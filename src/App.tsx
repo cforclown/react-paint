@@ -9,13 +9,17 @@ import Sidebar from './Components/Sidebar/Sidebar.style';
 import { useHistory } from './Hooks/UseHistory';
 import { ChangeColor, ChangeTool, ShowOrHideColorPicker } from './Reducer/Actions';
 import { IState } from './Reducer/Reducer';
-import { createElement, IRect, TypeElement } from './Utils/Element/Element.service';
 import Layers from './Components/Layers/Layers.style';
+import { IRect } from './Utils/Common';
+import Element from './Utils/Element/Element';
+import { generateElement, generateElementId, generateElementName } from './Utils/Element/Element.service';
 
 const generator = rough.generator();
 
 function App({ className }: { className?: string}): JSX.Element {
-  const { tool, showColorModal, color }: IState = useSelector<IState>((state) => state) as IState;
+  const {
+    tool, toolOptions, showColorModal, color,
+  }: IState = useSelector<IState>((state) => state) as IState;
   const dispatch = useDispatch();
   const [
     elements,
@@ -23,49 +27,48 @@ function App({ className }: { className?: string}): JSX.Element {
     undo,
     redo,
   ] = useHistory([]);
-  const [currentElement, setCurrentElement] = useState<TypeElement | undefined>(undefined);
+  const [selectedElement, setSelectedElement] = useState<Element | undefined>(undefined);
 
   useEffect(() => {
     if (tool !== 'selection') {
-      setCurrentElement(undefined);
+      setSelectedElement(undefined);
     }
   }, [tool]);
 
   const handleColorModalClose = (): void => {
     dispatch(ShowOrHideColorPicker(false));
   };
+
   const handleSetColor = (pickedColor: string): void => {
     dispatch(ChangeColor(pickedColor));
   };
 
   const handleInsertImage = (image: string | ArrayBuffer, position: IRect): void => {
-    const imageElement = createElement(
-      generator,
-      elements.length,
-      'image',
-      position.x,
-      position.y,
-      position.x + position.width,
-      position.y + position.height,
-      color,
-      {},
+    const imageElement = generateElement({
+      id: generateElementId(),
+      name: generateElementName(elements, 'image'),
+      type: 'image',
+      roughGenerator: generator,
       image,
-    );
+      rect: position,
+      color,
+      options: toolOptions.image,
+    });
     setElements((prevElements: any) => [...prevElements, imageElement]);
   };
 
-  const handleDeleteElement = (element: TypeElement): void => {
+  const handleDeleteElement = (element: Element): void => {
     // remove element and adjust the id (index)
     const currentElements = elements.filter((e) => e.id !== element.id);
     currentElements.forEach((e, i) => { e.id = i; });
     setElements(currentElements);
-    if (currentElement && currentElement.id === element.id) {
-      setCurrentElement(undefined);
+    if (selectedElement && selectedElement.id === element.id) {
+      setSelectedElement(undefined);
     }
   };
 
-  const handleLayerClick = (element: TypeElement): void => {
-    setCurrentElement(element);
+  const handleLayerClick = (element: Element): void => {
+    setSelectedElement(element);
     dispatch(ChangeTool('selection'));
   };
 
@@ -77,15 +80,15 @@ function App({ className }: { className?: string}): JSX.Element {
     <div className={className}>
       <Sidebar insertImage={handleInsertImage} />
       <div className="content">
-        <Header undo={undo} redo={redo} selectedElement={currentElement} />
+        <Header undo={undo} redo={redo} selectedElement={selectedElement} />
         <Canvas
-          roughGeneratopr={generator}
+          roughGenerator={generator}
           elements={elements}
           setElements={setElements}
           undo={undo}
           redo={redo}
-          currentElement={currentElement}
-          setCurrentElement={setCurrentElement}
+          selectedElement={selectedElement}
+          setSelectedElement={setSelectedElement}
         />
         <Modal show={showColorModal} onHide={handleColorModalClose}>
           <Modal.Header closeButton>
@@ -98,7 +101,7 @@ function App({ className }: { className?: string}): JSX.Element {
       </div>
       <Layers
         elements={elements}
-        selectedElement={currentElement}
+        selectedElement={selectedElement}
         onLayerClick={handleLayerClick}
         onDeleteElement={handleDeleteElement}
       />

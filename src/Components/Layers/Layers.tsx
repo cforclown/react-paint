@@ -1,19 +1,19 @@
 import { Button } from 'react-bootstrap';
 import { FaTrash } from 'react-icons/fa';
-import { TypeElement } from '../../Utils/Element/Element.service';
+import Element from '../../Utils/Element/Element';
 
 interface ILayers {
-  elements: TypeElement[];
-  selectedElement?: TypeElement | null;
-  onLayerClick: (element: TypeElement) => void;
-  onDeleteElement: (element: TypeElement) => void;
+  elements: Element[];
+  selectedElement?: Element | null;
+  onLayerClick: (element: Element) => void;
+  onDeleteElement: (element: Element) => void;
   className?: string;
 }
 
 function LayersBase({
   elements, selectedElement, onLayerClick, onDeleteElement, className,
 }: ILayers): JSX.Element {
-  const handleDeleteElement = (event: React.MouseEvent<HTMLButtonElement>, element: TypeElement): void => {
+  const handleDeleteElement = (event: React.MouseEvent<HTMLButtonElement>, element: Element): void => {
     event.stopPropagation();
     onDeleteElement(element);
   };
@@ -34,9 +34,7 @@ function LayersBase({
               }}
             >
               <div className="title">
-                {element.id + 1}
-                {' '}
-                {element.type}
+                {element.name}
               </div>
               <Button variant="danger" onClick={(e) => handleDeleteElement(e, element)}>
                 <FaTrash />

@@ -1,8 +1,9 @@
 import getStroke from 'perfect-freehand';
-import Element, { IUpdateElementParams } from '../Element';
+import { RoughCanvas } from 'roughjs/bin/canvas';
 import {
-  IPoint, IRect, ISize, ShapeElementType,
-} from '../Element.service';
+  IPoint, IRect, onLine,
+} from '../../Common';
+import Element, { ICreateElementParams, IUpdateElementParams } from '../Element';
 
 const getSvgPathFromStroke = (stroke: number[][]): string => {
   if (!stroke.length) {
@@ -22,7 +23,11 @@ const getSvgPathFromStroke = (stroke: number[][]): string => {
   return d.join(' ');
 };
 
-abstract class Pencil extends Element<CanvasRenderingContext2D> {
+class Pencil extends Element {
+  static create(params: ICreateElementParams): Element {
+    return new Pencil(params.id, params.name, params.rect, params.color, params.options);
+  }
+
   rect: IRect;
 
   points: IPoint[];
@@ -30,61 +35,66 @@ abstract class Pencil extends Element<CanvasRenderingContext2D> {
   offsets: IPoint[];
 
   constructor(
-    id: number,
-    shapeType: ShapeElementType,
-    drawerEngine: CanvasRenderingContext2D,
+    id: string,
+    name:string,
     rect: IRect,
     color: string,
     options: Record<string, any>,
   ) {
-    super(id, shapeType, drawerEngine, color, options);
+    super(id, name, 'pencil', rect, color, options);
     this.rect = rect;
-    this.points = [];
+    this.points = [{
+      x: rect.x,
+      y: rect.y,
+    }];
     this.offsets = [];
   }
 
   // PARENT METHODs --------------------------------------------------------------------
   update(params: IUpdateElementParams): void {
-    this.color = params.color;
-    this.options = params.options;
+    this.color = params.color ?? this.color;
+    this.options = params.options ?? this.options;
+    this.points = params.points ?? this.points;
+    const minX = Math.min(...this.points.map((p) => p.x));
+    const minY = Math.min(...this.points.map((p) => p.y));
     this.rect = {
-      x: params.rect.x,
-      y: params.rect.y,
-      width: params.rect.width ?? this.rect.width,
-      height: params.rect.height ?? this.rect.height,
+      x: minX,
+      y: minY,
+      width: Math.max(...this.points.map((p) => p.x)) - minX,
+      height: Math.max(...this.points.map((p) => p.y)) - minY,
     };
-    this.points = [
-      ...this.points,
-      { x: params.rect.x, y: params.rect.y },
-    ];
   }
 
-  draw(): void {
-    this.drawerEngine.fillStyle = this.color;
-    this.drawerEngine.fill(new Path2D(getSvgPathFromStroke(getStroke(this.points))));
+  draw(_: RoughCanvas, context2d: CanvasRenderingContext2D): void {
+    // eslint-disable-next-line no-param-reassign
+    context2d.fillStyle = this.color;
+    context2d.fill(new Path2D(getSvgPathFromStroke(getStroke(this.points))));
+  }
+
+  isHover(mousePos: IPoint): boolean {
+    const betweenAnyPoint = this.points.some((point, index) => {
+      const nextPoint = this.points[index + 1];
+      if (!nextPoint) return false;
+      return onLine(point, nextPoint, mousePos, this.options?.strokeWidth ?? 5);
+    });
+    return betweenAnyPoint;
+  }
+
+  // eslint-disable-next-line class-methods-use-this, @typescript-eslint/no-empty-function
+  adjustRect(): void {}
+
+  move(to: IPoint, offset: IPoint | IPoint[]): void {
+    if (!Array.isArray(offset) && this.points.length !== (offset as unknown as IPoint[]).length) {
+      return;
+    }
+
+    const offsets = offset as IPoint[];
+    this.points.forEach((_, index) => ({
+      x: to.x - offsets[index].x,
+      y: to.y - offsets[index].y,
+    }));
   }
   // -----------------------------------------------------------------------------------
-
-  topLeft(): IPoint {
-    return {
-      x: this.rect.x,
-      y: this.rect.y,
-    };
-  }
-
-  centerPos(): IPoint {
-    return {
-      x: this.rect.x + (this.rect.width / 2),
-      y: this.rect.y + (this.rect.height / 2),
-    };
-  }
-
-  size(): ISize {
-    return {
-      width: this.rect.width,
-      height: this.rect.height,
-    };
-  }
 }
 
 export default Pencil;

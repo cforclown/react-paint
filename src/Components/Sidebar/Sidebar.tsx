@@ -14,12 +14,12 @@ import {
 } from 'react-icons/fa';
 import { IState } from '../../Reducer/Reducer';
 import { ChangeTool, ShowOrHideColorPicker } from '../../Reducer/Actions';
-import { IRect, isToolType, ToolType } from '../../Utils/Element/Element.service';
+import { isToolType, ToolType } from '../../Utils/Element/Element.service';
 import TooltipContainer from '../Tooltip/Tooltip';
 import SidebarItemsContainer, { ISidebarItem } from './SidebarItem';
 import logo from '../../Assets/logo.png';
 import 'react-pro-sidebar/dist/css/styles.css';
-import { putToCenterOf } from '../Canvas/Canvas.service';
+import { IRect, putToCenterOf } from '../../Utils/Common';
 
 const items: ISidebarItem[] = [
   { id: 'selection', name: 'Selection', icon: <BiBox /> },
@@ -77,7 +77,6 @@ function SidebarBase({ insertImage, className }: ISidebar): JSX.Element {
           });
         } catch (err) {
           if (err instanceof Error) {
-            // eslint-disable-next-line no-console
             console.error(err.message);
           }
         }

@@ -20,50 +20,40 @@ const ElementRect = styled(ElementRectBase)<IElementRectProps>`
   }
 
   .top-center {
-    left: ${(props) => props.elementRect.width / 2 - 6}px;
-    top: -6px;
     cursor: n-resize;
   }
 
   .top-right {
-    left: ${(props) => props.elementRect.width - 6}px;
+    right: -6px;
     top: -6px;
     cursor: ne-resize;
   }
 
   .center-left {
-    left: -6px;
-    top: ${(props) => props.elementRect.height / 2 - 6}px;
     cursor: ew-resize;
   }
 
   .center-center {
-    left: ${(props) => props.elementRect.width / 2 - 6}px;
-    top: ${(props) => props.elementRect.height / 2 - 6}px;
     cursor: move;
   }
 
   .center-right {
-    left: ${(props) => props.elementRect.width - 6}px;
-    top: ${(props) => props.elementRect.height / 2 - 6}px;
     cursor: e-resize;
   }
 
   .bottom-left {
     left: -6px;
-    top: ${(props) => props.elementRect.height - 6}px;
+    bottom: -6px;
     cursor: sw-resize;
   }
 
   .bottom-center {
-    left: ${(props) => props.elementRect.width / 2 - 6}px;
-    top: ${(props) => props.elementRect.height - 6}px;
     cursor: s-resize;
   }
 
   .bottom-right {
-    left: ${(props) => props.elementRect.width - 6}px;
-    top: ${(props) => props.elementRect.height - 6}px;
+    right: -6px;
+    bottom: -6px;
     cursor: se-resize;
   } 
 `;
